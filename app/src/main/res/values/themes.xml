@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.Shelf" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/shelf_bg</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:colorBackgroundCacheHint">@color/shelf_bg</item>
+    </style>
+    <color name="shelf_bg">#FF0A0E16</color>
+</resources>
