@@ -1,7 +1,7 @@
 <resources>
     <style name="Theme.Shelf" parent="android:Theme.Material.NoActionBar">
-        <!-- White to match the cold-start splash, so there is no dark flash before it draws. -->
-        <item name="android:windowBackground">@color/splash_bg</item>
+        <!-- Dark, like the home screen. (When the splash is re-enabled this should be @color/splash_bg, white.) -->
+        <item name="android:windowBackground">@color/shelf_bg</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowAnimationStyle">@null</item>

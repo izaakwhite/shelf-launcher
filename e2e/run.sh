@@ -129,7 +129,9 @@ case "$k1" in sys:*|"") bad "Apps category has apps" "focus=$k1" ;; *)
 esac
 
 echo "Splash"
-if [ "$HAVE_FFMPEG" = 1 ]; then
+if [ "${SPLASH:-0}" != 1 ]; then
+  skip "Splash appears and clears" "splash is unwired (run with SPLASH=1 once it is re-enabled)"
+elif [ "$HAVE_FFMPEG" = 1 ]; then
   key KEYCODE_HOME; A shell am force-stop $PKG; sleep 1
   A shell am start -n "$PKG/.HomeActivity" >/dev/null 2>&1
   v=$(lum)
