@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -57,7 +58,13 @@ class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) { ShelfRoot(app, this) }
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                Box(Modifier.fillMaxSize()) {
+                    ShelfRoot(app, this@HomeActivity)
+                    // Covers the home screen while it loads underneath, then fades away.
+                    if (!app.session.splashDone.value) SplashOverlay { app.session.splashDone.value = true }
+                }
+            }
         }
         // Compose paints every pixel; the window background would be a second full-screen fill per frame.
         window.decorView.post { window.setBackgroundDrawable(null) }

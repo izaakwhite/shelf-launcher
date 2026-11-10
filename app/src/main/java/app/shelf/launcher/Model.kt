@@ -54,4 +54,6 @@ class Session {
     val homeTick = mutableIntStateOf(0)
     /** Bumped on every onResume. */
     val resumeTick = mutableIntStateOf(0)
+    /** The launch intro plays once per process start. */
+    val splashDone = androidx.compose.runtime.mutableStateOf(false)
 }

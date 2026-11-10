@@ -1,6 +1,7 @@
 <resources>
     <style name="Theme.Shelf" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/shelf_bg</item>
+        <!-- White so a cold start goes straight into the white launch intro (see Splash.kt). -->
+        <item name="android:windowBackground">@android:color/white</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowAnimationStyle">@null</item>
