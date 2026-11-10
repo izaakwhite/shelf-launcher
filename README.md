@@ -58,6 +58,11 @@ through a pull request, and only the repo owner can bypass that).
 install an update signed with a different key over an older build: `SHELF_KEYSTORE_PATH` (a path you restore from a
 secret), `SHELF_KEYSTORE_PASSWORD`, `SHELF_KEY_ALIAS`, `SHELF_KEY_PASSWORD`. Until then, uninstall before sideloading a release.
 
+**Releases:** every merge to `main` is tagged and published as a **pre-release** (`v<version>-b<build>`). To ship a real
+version, write commits as `feat: ...` / `fix: ...`; a bot keeps a "Release x.y.z" pull request open (release-please)
+that bumps `VERSION` and `CHANGELOG.md`. Merging it creates the `vX.Y.Z` release marked *latest*. (GitHub doesn't run
+checks on bot-created PRs, so the owner merges that one with the bypass.)
+
 Tests: `./gradlew :app:testDebugUnitTest` (unit) and `./e2e/run.sh` (drives a real TV; add `--perf` for frame stats).
 
 **Commit hook:** run `./scripts/setup-hooks.sh` once. It then runs Android lint and the unit tests before each commit

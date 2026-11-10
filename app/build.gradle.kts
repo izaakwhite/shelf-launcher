@@ -5,7 +5,7 @@ plugins {
 
 // Version: VERSION from /.versions; build number from CI (BUILD_NUMBER), 1 for local builds.
 val shelfVersion: String = rootProject.file(".versions").readLines()
-    .firstOrNull { it.startsWith("VERSION=") }?.substringAfter("=")?.trim() ?: "0.0.0"
+    .firstOrNull { it.startsWith("VERSION=") }?.substringAfter("=")?.trim()?.substringBefore(" ") ?: "0.0.0"
 val shelfBuild: Int = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 1
 
 android {

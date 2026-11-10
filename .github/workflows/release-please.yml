@@ -1,0 +1,20 @@
+name: Release PR
+
+# Reads conventional commits (feat:, fix:, ...) on main and keeps a "Release x.y.z" pull request open that bumps
+# VERSION in .versions and the changelog. Merging that PR creates the vX.Y.Z release (the "latest" one).
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

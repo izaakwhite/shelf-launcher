@@ -42,12 +42,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BUILD: ${{ github.run_number }}
         run: |
-          VERSION=$(grep '^VERSION=' .versions | cut -d= -f2)
+          VERSION=$(grep '^VERSION=' .versions | cut -d= -f2 | awk '{print $1}')
           TAG="v${VERSION}-b${BUILD}"
           SHA=$(git rev-parse HEAD)
           mv app-release.apk "shelf-${TAG}.apk"
           git tag "$TAG" "$SHA" && git push origin "$TAG"
-          gh release create "$TAG" "shelf-${TAG}.apk" --target "$SHA" --title "Shelf $TAG" --generate-notes
+          gh release create "$TAG" "shelf-${TAG}.apk" --target "$SHA" --title "Shelf $TAG" --generate-notes --prerelease --latest=false
           LINE="${BUILD} | ${VERSION} | ${SHA} | $(date -u +%FT%TZ)"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
