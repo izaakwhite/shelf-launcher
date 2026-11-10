@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/izaakwhite/shelf-launcher/compare/v0.4.0...v0.5.0) (2026-11-10)
+
+
+### Features
+
+* list Shelf in the TV app menu with its icon and banner ([f8c5da4](https://github.com/izaakwhite/shelf-launcher/commit/f8c5da4e03859cca03f54ff2d7098dce59fe5240))
+
 ## [0.4.0](https://github.com/izaakwhite/shelf-launcher/compare/v0.3.0...v0.4.0) (2026-11-10)
 
 
