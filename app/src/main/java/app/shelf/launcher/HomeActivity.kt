@@ -39,8 +39,7 @@ class HomeActivity : ComponentActivity() {
             val c = controllerNow
             when (event.keyCode) {
                 android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN -> app.sounds.tick()
-                android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT ->
-                    if (s.style == STYLE_WAVE && c?.editKey == null) app.sounds.slide() else app.sounds.tick()
+                android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> app.sounds.tick()
                 android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER -> app.sounds.ok()
                 android.view.KeyEvent.KEYCODE_BACK ->
                     if (c != null && (c.editKey != null || c.sheetFor != null || c.overlay != Overlay.NONE)) app.sounds.back()
@@ -80,8 +79,23 @@ class HomeActivity : ComponentActivity() {
         if (intent.hasCategory(Intent.CATEGORY_HOME) && alreadyOnHome) app.session.homeTick.intValue++
     }
 
+    /** Wave music runs only while Shelf is on screen in the Wave style with music enabled. */
+    private var resumed = false
+    fun updateMusic() {
+        val s = settingsNow
+        if (resumed && s != null && s.style == STYLE_WAVE && s.music) app.music.start() else app.music.stop()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        resumed = false
+        app.music.stop()
+    }
+
     override fun onResume() {
         super.onResume()
+        resumed = true
+        window.decorView.postDelayed({ updateMusic() }, 600)
         app.session.resumeTick.intValue++
         lifecycleScope.launch { app.backdrop.refresh() }
     }
@@ -154,6 +168,7 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
     BackHandler(enabled = true) { controller.back() }
     activity.settingsNow = s
     activity.controllerNow = controller
+    LaunchedEffect(s.style, s.music) { activity.updateMusic() }
 
     val carouselApps = remember(arranged) { (arranged.dock + arranged.main).map { GridItem.App(it) } }
     val pills = remember(inputs, s.showInputs) {

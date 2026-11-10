@@ -14,6 +14,7 @@ class ShelfApp : Application() {
     val inputs by lazy { InputRepository(this) }
     val backdrop by lazy { BackdropRepository(this) }
     val sounds by lazy { SoundFx(this) }
+    val music by lazy { WaveMusic(this) }
     val session = Session()
 
     override fun onCreate() {
