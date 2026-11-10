@@ -12,8 +12,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.tv.material3.MaterialTheme
@@ -93,7 +99,18 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
     val apps by app.apps.apps.collectAsState()
     val settings by app.prefs.settings.collectAsState(initial = null)
     val backdrop by app.backdrop.state.collectAsState()
-    val inputs = remember { app.inputs.load() }
+    // TV inputs register late after boot (TCL's input service starts after the launcher), so reload
+    // on every resume and retry a few times while the list is still empty.
+    var inputs by remember { mutableStateOf(emptyList<InputEntry>()) }
+    val resumeTick = app.session.resumeTick.intValue
+    LaunchedEffect(resumeTick) {
+        for (wait in listOf(0L, 3_000L, 10_000L, 30_000L)) {
+            delay(wait)
+            val loaded = withContext(Dispatchers.IO) { app.inputs.load() }
+            if (loaded != inputs) inputs = loaded
+            if (loaded.isNotEmpty()) break
+        }
+    }
 
     LaunchedEffect(Unit) { app.prefs.layout.collect { controller.onStoredLayout(it) } }
 
@@ -132,6 +149,8 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
         }
     }
 
+    // Marks "interactive": apps + settings + layout are loaded and the home content is composed.
+    LaunchedEffect(Unit) { withFrameNanos { }; activity.reportFullyDrawn() }
     BackHandler(enabled = true) { controller.back() }
     activity.settingsNow = s
     activity.controllerNow = controller

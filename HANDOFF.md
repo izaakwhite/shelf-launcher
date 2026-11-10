@@ -1,27 +1,23 @@
 # Session handoff — Shelf launcher
 
-_Last updated: 2026-11-09 19:21 (update at every milestone)_
+_Last updated: 2026-11-09 20:30_
 
 ## TV state right now
-- Shelf (`app.shelf.launcher/.HomeActivity`) is installed and **set as the default home**.
+- Shelf is installed and **is the default home**. Current style on the TV: **Wave** (the user liked it).
 - Projectivy is untouched. To go back:
   `adb shell cmd package set-home-activity com.spocky.projengmenu/com.spocky.projengmenu.ui.home.MainActivity`
-- If a session stops mid-work, the rule is: restore Projectivy as home (command above) unless Shelf is verified working.
+- If a session has to stop mid-work: restore Projectivy (command above) unless Shelf is verified working.
 
 ## Done
-- M1 toolchain (Homebrew `openjdk@17`, `android-commandlinetools`, SDK 36/37.0, AGP 9.5.1, Kotlin 2.4.21, Compose BOM 2026.09.00, tv-material 1.1.0). Build: `source env.sh && ./gradlew assembleRelease`.
-- M2 grid, M3 focus effect, M4 Top Shelf/clock/background, M5 home behavior, M6 edit mode/hide/favorites/persistence (force-stop verified).
+All 8 milestones, plus the mid-session redesign: Aero (Aqua/Dusk/Night) glass carousel, Wave (console-dashboard style)
+with sounds, Classic grid; theme shortcuts in the TV app list. Measurements are in DECISIONS.md.
 
-## In progress
-- User asked mid-session (19:19) for a redesign: pseudo "liquid glass" panels, centered glass clock,
-  modern Frutiger-Aero background, a horizontal **carousel** of **square icons** on a glass shelf.
-  Plan: carousel becomes default layout; tvOS grid stays as Settings → Layout → Grid.
-
-## Still to do
-- Reboot persistence check (once), inputs launch test on hardware (M7), gfxinfo/meminfo/start-time pass (M8),
-  README, final shots.
+## Next ideas
+1. Wave performance: draw the ribbon on a SurfaceView/TextureView at 30 fps or half resolution so navigation frames stay light.
+2. Fix the occasionally-swallowed first key after returning home.
+3. A proper theme picker (list) instead of cycling the Style row.
 
 ## Gotchas
-- Installing a new HOME app makes Android forget the default home; `deploy.sh` restores whatever was default.
-- `screenrecord` starves this SoC — input events get dropped and frame rate collapses; don't judge smoothness from it.
-- zsh: no `timeout` command; `deploy.sh` uses a perl alarm.
+- Never send keys while another app is in front: use `./tv.sh` (it checks). `deploy.sh` won't launch over another app.
+- Installing a new HOME app resets the default home; `deploy.sh` restores it.
+- `screenrecord` and `input keyevent` both distort performance on this SoC; use `sendevent /dev/input/event2` to measure.

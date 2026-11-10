@@ -280,7 +280,7 @@ fun WaveScreen(
                 val s by animateFloatAsState(if (isSel) 1f else 0.62f, spring(0.7f, 380f), label = "is")
                 Row(
                     Modifier
-                        .offset(x = anchorX - 36.dp, y = anchorY - 36.dp)
+                        .offset(x = anchorX - 60.dp, y = anchorY - 60.dp)
                         .graphicsLayer {
                             val rel = i - itemAnim.value
                             val ar = abs(rel)
@@ -299,10 +299,11 @@ fun WaveScreen(
                         },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(Modifier.size(72.dp).graphicsLayer { scaleX = s; scaleY = s }) {
+                    // Padding keeps the selection glow inside this row's cached texture (no hard edges).
+                    Box(Modifier.padding(24.dp).size(72.dp).graphicsLayer { scaleX = s; scaleY = s }) {
                         if (isSel) {
                             Box(
-                                Modifier.fillMaxSize().graphicsLayer { scaleX = 1.7f; scaleY = 1.7f }.background(
+                                Modifier.fillMaxSize().graphicsLayer { scaleX = 1.6f; scaleY = 1.6f }.background(
                                     Brush.radialGradient(listOf(Color.White.copy(alpha = 0.28f), Color.Transparent)),
                                 ),
                             )
@@ -327,7 +328,7 @@ fun WaveScreen(
                         item.label,
                         style = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = if (isSel) 24.sp else 19.sp, color = Color.White),
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 8.dp).widthIn(max = W * 0.36f),
+                        modifier = Modifier.padding(start = 0.dp, end = 8.dp).widthIn(max = W * 0.36f),
                     )
                 }
             }
