@@ -114,6 +114,20 @@ fun WaveScreen(
     val itemAnim = remember { Animatable(0f) }
     val root = remember { FocusRequester() }
 
+    // Motion budget: the GPU here can't draw the wheel's motion and the ambient background (ribbon drift, halo
+    // breathing, hue shift) in the same frame. Any key press pauses the ambient layer for ~0.55 s, so frames
+    // while you scroll only carry the wheel; it resumes when you stop. Ambient motion runs on one 12 fps clock.
+    var navTick by remember { mutableIntStateOf(0) }
+    val calm by produceState(false, navTick) {
+        if (navTick == 0) return@produceState
+        value = true; delay(550); value = false
+    }
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(calm, motion) {
+        if (!motion) return@LaunchedEffect
+        while (!calm) { delay(84); tick++ }
+    }
+
     fun clampCat() = cat.coerceIn(0, (categories.size - 1).coerceAtLeast(0))
     val current = categories.getOrNull(clampCat())
     val sel = current?.let { (itemIdx[it.id] ?: 0).coerceIn(0, (it.items.size - 1).coerceAtLeast(0)) } ?: 0
@@ -134,9 +148,9 @@ fun WaveScreen(
         return false
     }
 
-    LaunchedEffect(cat, motion) { if (motion) catAnim.animateTo(cat.toFloat(), spring(0.9f, 260f)) else catAnim.snapTo(cat.toFloat()) }
+    LaunchedEffect(cat, motion) { if (motion) catAnim.animateTo(cat.toFloat(), spring(0.9f, 380f)) else catAnim.snapTo(cat.toFloat()) }
     LaunchedEffect(cat) { itemAnim.snapTo(sel.toFloat()) }
-    LaunchedEffect(sel, motion) { if (motion) itemAnim.animateTo(sel.toFloat(), spring(0.9f, 320f)) else itemAnim.snapTo(sel.toFloat()) }
+    LaunchedEffect(sel, motion) { if (motion) itemAnim.animateTo(sel.toFloat(), spring(0.9f, 520f)) else itemAnim.snapTo(sel.toFloat()) }
     LaunchedEffect(selected?.key) { publish() }
 
     val resumeTick = session.resumeTick.intValue
@@ -170,6 +184,7 @@ fun WaveScreen(
                 val ne = ev.nativeKeyEvent
                 val down = ev.type == KeyEventType.KeyDown
                 val editing = controller.editKey != null
+                if (down) navTick++
                 when (ne.keyCode) {
                     AKeyEvent.KEYCODE_DPAD_LEFT, AKeyEvent.KEYCODE_DPAD_RIGHT -> {
                         if (down && !editing) {
@@ -218,10 +233,8 @@ fun WaveScreen(
     ) {
         val W = maxWidth; val H = maxHeight
         val wPx = with(density) { W.toPx() }
-        val hue by produceState(225f, motion) {
-            if (!motion) return@produceState
-            while (true) { delay(250); value = (value + 0.5f) % 360f }
-        }
+        // 0.5 degrees every 3 ticks (250 ms), as before, but driven by the shared ambient clock.
+        val hue by remember { androidx.compose.runtime.derivedStateOf { (225f + (tick / 3) * 0.5f) % 360f } }
 
         // ---- background: month-tinted gradient ----
         Box(
@@ -232,7 +245,7 @@ fun WaveScreen(
                 ),
             ),
         )
-        WaveLayer(motion, wPx.roundToInt(), Modifier.align(Alignment.TopStart).padding(top = H * 0.34f))
+        WaveLayer(motion, { tick }, wPx.roundToInt(), Modifier.align(Alignment.TopStart).padding(top = H * 0.34f))
 
         // ---- clock + date, top right ----
         WaveClock(Modifier.align(Alignment.TopEnd).padding(top = H * 0.05f, end = W * 0.058f))
@@ -272,19 +285,15 @@ fun WaveScreen(
 
         // ---- breathing halo behind the selected icon ----
         run {
-            val breathe = if (motion) {
-                rememberInfiniteTransition(label = "halo").animateFloat(
-                    0.16f, 0.40f,
-                    infiniteRepeatable(tween(2600, easing = androidx.compose.animation.core.FastOutSlowInEasing), androidx.compose.animation.core.RepeatMode.Reverse),
-                    label = "halo",
-                ).value
-            } else 0.28f
             if (current?.items?.isNotEmpty() == true) {
                 Box(
                     Modifier
                         .offset(x = anchorX - 95.dp, y = H * 0.58f - 95.dp)
                         .size(190.dp)
-                        .graphicsLayer { alpha = breathe }
+                        .graphicsLayer {
+                            // Breathing: 5.2 s cycle (62.5 ticks at 12 fps), eased with a raised cosine between 0.16 and 0.40.
+                            alpha = if (motion) 0.16f + 0.24f * (0.5f - 0.5f * kotlin.math.cos(2f * PI.toFloat() * tick / 62.5f)) else 0.28f
+                        }
                         .background(Brush.radialGradient(listOf(Color.White, Color.White.copy(alpha = 0.25f), Color.Transparent))),
                 )
             }
@@ -454,7 +463,7 @@ private fun WaveInfo(item: GridItem, editing: Boolean, panelW: androidx.compose.
  * too slow to see the steps, and it lets most frames skip redrawing the ribbon (this GPU is fill-rate bound).
  */
 @Composable
-private fun WaveLayer(motion: Boolean, screenWpx: Int, modifier: Modifier) {
+private fun WaveLayer(motion: Boolean, tick: () -> Int, screenWpx: Int, modifier: Modifier) {
     val ribbons by produceState(WaveArtCache.a?.let { it to WaveArtCache.b!! }) {
         if (value == null) {
             value = withContext(Dispatchers.Default) {
@@ -466,18 +475,13 @@ private fun WaveLayer(motion: Boolean, screenWpx: Int, modifier: Modifier) {
         }
     }
     val r = ribbons ?: return
-    val t = if (motion) {
-        rememberInfiniteTransition(label = "wave").animateFloat(0f, 1f, infiniteRepeatable(tween(90_000, easing = LinearEasing)), label = "t")
-    } else null
-    // Only changes ~12x a second, so the draw below is invalidated that often rather than every frame.
-    val step by remember(t) { androidx.compose.runtime.derivedStateOf { ((t?.value ?: 0.25f) * 1080f).toInt() } }
     val density = LocalDensity.current
     Box(
         modifier
             .fillMaxWidth()
             .height(with(density) { 480.toDp() })
             .drawBehind {
-                val p = step / 1080f
+                val p = if (motion) (tick() % 1080) / 1080f else 0.25f   // 1080 ticks x 84 ms = a 90 s loop
                 val sway = sin(p * 2 * PI.toFloat() * 6) * 12f
                 val half = (screenWpx / 2 + 1).coerceAtMost(1920 - 960)   // source px that cover the screen at 2x
                 val sa = ((p * 960 * 3) % 960).toInt()
