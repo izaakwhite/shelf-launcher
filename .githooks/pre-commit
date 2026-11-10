@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Verify hook: Android lint + unit tests before every commit.
+# Enable once per clone:  ./scripts/setup-hooks.sh        Skip in an emergency:  git commit --no-verify
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+# Docs-only commits stay instant: only verify when code, build or CI files are staged.
+git diff --cached --name-only | grep -qE '\.(kt|kts|xml|java|py|sh)$|^\.versions$|^\.github/|^app/src/|^\.githooks/' || exit 0
+
+[ -f env.sh ] && . ./env.sh
+
+echo "▶ pre-commit: shell syntax"
+for f in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.sh$|^\.githooks/') ; do
+  bash -n "$f" || { echo "✗ syntax error in $f"; exit 1; }
+done
+
+echo "▶ pre-commit: Android lint + unit tests (about a minute)"
+log=$(mktemp)
+if ./gradlew :app:lintDebug :app:testDebugUnitTest -q --console=plain >"$log" 2>&1; then
+  rm -f "$log"; echo "✓ verified"; exit 0
+fi
+grep -vE '^\s*$|^w:' "$log" | head -40
+echo
+echo "✗ lint or unit tests failed (reports: app/build/reports/lint-results-debug.txt, app/build/reports/tests/)."
+echo "  Fix it, or commit anyway with: git commit --no-verify"
+rm -f "$log"; exit 1

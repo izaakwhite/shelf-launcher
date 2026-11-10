@@ -42,36 +42,12 @@ class HomeController(
         layoutLoaded = true
     }
 
-    fun arrange(apps: List<AppEntry>, columns: Int): Arranged {
-        val byKey = apps.associateBy { it.key }
-        val l = layout
-        val favs = l.favorites.mapNotNull { byKey[it] }.filter { it.key !in l.hidden }
-        val dock = favs.take(columns)
-        val overflow = favs.drop(columns)
-        val used = HashSet<String>().apply { dock.forEach { add(it.key) }; overflow.forEach { add(it.key) } }
-        val ordered = l.order.mapNotNull { byKey[it] }.filter { it.key !in used && it.key !in l.hidden }
-        ordered.forEach { used += it.key }
-        val rest = apps.filter { it.key !in used && it.key !in l.hidden }
-        return Arranged(dock, overflow + ordered + rest)
-    }
+    fun arrange(apps: List<AppEntry>, columns: Int): Arranged = LayoutLogic.arrange(apps, layout, columns)
 
     /** First run: pick some favorites and tuck away TCL's internal utility activities. */
     fun seedIfNeeded(apps: List<AppEntry>, columns: Int) {
         if (!layoutLoaded || layout.seeded || apps.isEmpty()) return
-        val preferred = listOf(
-            "com.netflix.ninja", "com.amazon.amazonvideo.livingroom", "com.hulu.livingroomplus",
-            "com.spotify.tv.android", "io.github.jqssun.airplay", "com.google.android.youtube.tv",
-        )
-        val favs = apps.filter { it.packageName in preferred }
-            .sortedBy { preferred.indexOf(it.packageName) }
-            .take(columns).map { it.key }
-            .ifEmpty { apps.filter { it.leanback }.take(columns).map { it.key } }
-        val utility = setOf(
-            "com.tcl.tcl_bt_rcu_service", "com.tcl.initsetup", "com.tcl.useragreement",
-            "com.tcl.rc.ota", "com.tcl.framework.custom",
-        )
-        val hidden = apps.filter { it.packageName in utility }.map { it.key }.toSet()
-        layout = Layout(favorites = favs, order = emptyList(), hidden = hidden, seeded = true)
+        layout = LayoutLogic.seed(apps, columns)
         persist()
     }
 
@@ -97,100 +73,32 @@ class HomeController(
     }
 
     /** Moves the tile being edited one step. Returns false if it can't go that way. */
-    fun move(dir: Dir, arranged: Arranged, columns: Int): Boolean {
-        val key = editKey ?: return false
-        val dock = arranged.dock.map { it.key }.toMutableList()
-        val main = arranged.main.map { it.key }.toMutableList()
-        val inDock = key in dock
-        val list = if (inDock) dock else main
-        val i = list.indexOf(key)
-        if (i < 0) return false
-        when (dir) {
-            Dir.LEFT -> { if (i == 0) return false; list.removeAt(i); list.add(i - 1, key) }
-            Dir.RIGHT -> { if (i == list.lastIndex) return false; list.removeAt(i); list.add(i + 1, key) }
-            Dir.UP -> {
-                if (inDock) return false
-                if (i >= columns) { list.removeAt(i); list.add(i - columns, key) }
-                else {
-                    if (dock.size >= columns) return false
-                    main.removeAt(i); dock.add(i.coerceAtMost(dock.size), key)
-                }
-            }
-            Dir.DOWN -> {
-                if (inDock) { dock.removeAt(i); main.add(i.coerceAtMost(main.size), key) }
-                else {
-                    if (i + columns > main.lastIndex && (i / columns) == (main.lastIndex / columns)) return false
-                    list.removeAt(i); list.add((i + columns).coerceAtMost(list.size), key)
-                }
-            }
-        }
-        layout = layout.copy(favorites = dock, order = main)
-        editVersion++
-        return true
-    }
+    fun move(dir: Dir, arranged: Arranged, columns: Int): Boolean =
+        applyEdit(editKey?.let { LayoutLogic.move(layout, it, dir, arranged, columns) })
 
-    /** Carousel move: favourites are the front of one line; crossing the divider (un)favourites. */
-    fun moveLinear(dir: Dir, arranged: Arranged, crossDivider: Boolean = true): Boolean {
-        val key = editKey ?: return false
-        if (!crossDivider) {
-            val list = if (arranged.dock.any { it.key == key }) arranged.dock else arranged.main
-            val i = list.indexOfFirst { it.key == key }
-            if ((dir == Dir.LEFT && i == 0) || (dir == Dir.RIGHT && i == list.lastIndex)) return false
-        }
-        val dock = arranged.dock.map { it.key }.toMutableList()
-        val main = arranged.main.map { it.key }.toMutableList()
-        when (dir) {
-            Dir.LEFT -> when {
-                key in main -> {
-                    val i = main.indexOf(key)
-                    if (i == 0) { main.removeAt(0); dock.add(key) } else { main.removeAt(i); main.add(i - 1, key) }
-                }
-                else -> {
-                    val i = dock.indexOf(key)
-                    if (i <= 0) return false
-                    dock.removeAt(i); dock.add(i - 1, key)
-                }
-            }
-            Dir.RIGHT -> when {
-                key in dock -> {
-                    val i = dock.indexOf(key)
-                    if (i == dock.lastIndex) { dock.removeAt(i); main.add(0, key) } else { dock.removeAt(i); dock.add(i + 1, key) }
-                }
-                else -> {
-                    val i = main.indexOf(key)
-                    if (i < 0 || i == main.lastIndex) return false
-                    main.removeAt(i); main.add(i + 1, key)
-                }
-            }
-            else -> return false
-        }
-        layout = layout.copy(favorites = dock, order = main)
+    /** Carousel / list move (favourites are the front of the line). */
+    fun moveLinear(dir: Dir, arranged: Arranged, crossDivider: Boolean = true): Boolean =
+        applyEdit(editKey?.let { LayoutLogic.moveLinear(layout, it, dir, arranged, crossDivider) })
+
+    private fun applyEdit(next: Layout?): Boolean {
+        if (next == null) return false
+        layout = next
         editVersion++
         return true
     }
 
     fun toggleFavorite(key: String, arranged: Arranged, columns: Int) {
-        val dock = arranged.dock.map { it.key }.toMutableList()
-        val main = arranged.main.map { it.key }.toMutableList()
-        if (key in dock) {
-            dock.remove(key); main.add(0, key)
-        } else {
-            main.remove(key)
-            if (dock.size >= columns) main.add(0, dock.removeAt(dock.lastIndex))
-            dock.add(key)
-        }
-        layout = layout.copy(favorites = dock, order = main)
+        layout = LayoutLogic.toggleFavorite(layout, key, arranged, columns)
         drop()
     }
 
     fun hide(key: String) {
-        val l = layout
-        layout = l.copy(favorites = l.favorites - key, order = l.order - key, hidden = l.hidden + key)
+        layout = LayoutLogic.hide(layout, key)
         drop()
     }
 
     fun unhide(key: String) {
-        layout = layout.copy(hidden = layout.hidden - key)
+        layout = LayoutLogic.unhide(layout, key)
         persist()
     }
 

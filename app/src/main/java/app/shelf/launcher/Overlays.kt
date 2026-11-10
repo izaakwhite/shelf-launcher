@@ -101,8 +101,7 @@ fun SettingsPanel(
             Text("Shelf", style = Type.panelTitle, modifier = Modifier.padding(bottom = 16.dp))
             Row("Style", styleName(settings.style), Modifier.focusRequester(first)) {
                 onChange {
-                    val order = listOf(STYLE_AERO, STYLE_AERO_DUSK, STYLE_AERO_NIGHT, STYLE_WAVE, STYLE_GRID)
-                    it.copy(style = order[(order.indexOf(it.style) + 1) % order.size])
+                    it.copy(style = LayoutLogic.nextStyle(it.style))
                 }
             }
             if (settings.carousel) {

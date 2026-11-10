@@ -1,5 +1,6 @@
 package app.shelf.launcher
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -20,6 +21,8 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.snapshotFlow
+import android.util.Log
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.tv.material3.MaterialTheme
@@ -33,6 +36,9 @@ class HomeActivity : ComponentActivity() {
     var settingsNow: Settings? = null
     var controllerNow: HomeController? = null
 
+    // Both are false positives: we only *observe* keys to play a click (Back isn't intercepted; TVs have no
+    // back gesture), and calling super.dispatchKeyEvent on an androidx ComponentActivity is flagged by mistake.
+    @SuppressLint("GestureBackNavigation", "RestrictedApi")
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         val s = settingsNow
         if (s?.sounds == true && event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
@@ -169,6 +175,18 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
     activity.settingsNow = s
     activity.controllerNow = controller
     LaunchedEffect(s.style, s.music) { activity.updateMusic() }
+    // One log line per UI state change; the end-to-end tests (e2e/run.sh) read these from logcat.
+    LaunchedEffect(s.style) { Log.i("ShelfState", "style=${s.style}") }
+    // Also log the state each time Shelf comes to the front, so e2e tests can read it even if nothing changed.
+    LaunchedEffect(resumeTick) {
+        delay(600)
+        Log.i("ShelfState", "focus=${controller.focusedKey} overlay=${controller.overlay} edit=${controller.editKey}")
+    }
+    LaunchedEffect(Unit) {
+        snapshotFlow { Triple(controller.focusedKey, controller.overlay, controller.editKey) }.collect { (f, o, e) ->
+            Log.i("ShelfState", "focus=$f overlay=$o edit=$e")
+        }
+    }
 
     val carouselApps = remember(arranged) { (arranged.dock + arranged.main).map { GridItem.App(it) } }
     val pills = remember(inputs, s.showInputs) {

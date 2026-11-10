@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write   # tags, releases, and the .versions record
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-java@v6
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v4
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest
+      - name: Build release APK
+        env: { BUILD_NUMBER: "${{ github.run_number }}" }
+        run: ./gradlew assembleRelease
+      - uses: actions/upload-artifact@v7
+        with:
+          name: shelf-apk
+          path: app/build/outputs/apk/release/app-release.apk
+
+  publish:
+    # Only for pushes to main: tag the built commit, publish a release, record it on the `versions` branch.
+    needs: test-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with: { name: shelf-apk }
+      - name: Tag, release, record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD: ${{ github.run_number }}
+        run: |
+          VERSION=$(grep '^VERSION=' .versions | cut -d= -f2 | awk '{print $1}')
+          TAG="v${VERSION}-b${BUILD}"
+          SHA=$(git rev-parse HEAD)
+          mv app-release.apk "shelf-${TAG}.apk"
+          git tag "$TAG" "$SHA" && git push origin "$TAG"
+          gh release create "$TAG" "shelf-${TAG}.apk" --target "$SHA" --title "Shelf $TAG" --generate-notes --prerelease --latest=false
+          LINE="${BUILD} | ${VERSION} | ${SHA} | $(date -u +%FT%TZ)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # main is protected (PRs only), so the build log lives on its own branch.
+          git fetch origin versions 2>/dev/null && git checkout -q -B versions origin/versions || git checkout -q -B versions
+          echo "$LINE" >> .versions
+          git add .versions && git commit -q -m "Record build ${TAG}"
+          git push origin versions
