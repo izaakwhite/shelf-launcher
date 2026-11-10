@@ -23,29 +23,45 @@ def click(dur, decay, tone_hz, tone_amp, noise_amp, lp, vol, seed):
     return out, sr
 
 def ambient(seconds=48, sr=22050):
-    """Slow, soft chord pad that loops seamlessly (original progression)."""
-    chords = [  # frequencies in Hz
-        [130.81, 196.00, 246.94, 293.66, 329.63],   # Cmaj9-ish
-        [110.00, 164.81, 196.00, 246.94, 261.63],   # Am9-ish
-        [87.31, 130.81, 174.61, 220.00, 329.63],    # Fmaj7(9)-ish
-        [98.00, 146.83, 196.00, 246.94, 293.66],    # G(add9)
-    ]
-    n = int(seconds * sr); seg = n // len(chords); xf = int(sr * 3.0)
-    out = [0.0] * n
-    for ci, ch in enumerate(chords):
-        start = ci * seg
-        for k in range(seg + xf):
-            idx = (start + k) % n                     # wraps: the last chord fades into the first
+    """Warm, bright, slow ambient loop (original). Every note is added with wrap-around, so the
+    end of the file flows straight into the start: the loop has no seam."""
+    n = int(seconds * sr); out = [0.0] * n
+    def hz(m): return 440.0 * 2 ** ((m - 69) / 12)
+    # Original progression in D major, 8 s per chord: Dmaj9, F#m7, Gmaj7, Em9, Bm7, A(sus2)
+    chords = [[50, 62, 66, 69, 73, 76], [54, 61, 64, 69, 73], [55, 62, 66, 71, 74],
+              [52, 62, 66, 67, 71], [47, 62, 66, 69, 73], [45, 61, 64, 69, 71]]
+    seg = n // len(chords)
+
+    def note(start, length, f, amp, attack, release, bell=False):
+        """Soft electric-piano/pad tone: few harmonics, smooth envelope (no detune beating)."""
+        total = length + release
+        for k in range(total):
             t = k / sr
-            a = min(1.0, k / xf) * min(1.0, (seg + xf - k) / xf)
-            v = 0.0
-            for j, f in enumerate(ch):
-                lfo = 1 + 0.003 * math.sin(2 * math.pi * (0.07 + 0.013 * j) * t)
-                v += math.sin(2 * math.pi * f * lfo * t + j) * (0.9 if j == 0 else 0.55)
-                v += 0.12 * math.sin(2 * math.pi * f * 2.0 * t + 0.5 * j)   # gentle shimmer
-            out[idx] += a * v
-    peak = max(abs(s) for s in out) or 1
-    return [0.32 * s / peak for s in out], sr
+            if bell:
+                env = min(1.0, t / 0.01) * math.exp(-t * 2.2)
+            else:
+                env = min(1.0, t / attack) * (1.0 if k < length else max(0.0, 1 - (k - length) / release))
+            v = (math.sin(2 * math.pi * f * t) + 0.18 * math.sin(4 * math.pi * f * t)
+                 + 0.05 * math.sin(6 * math.pi * f * t))
+            out[(start + k) % n] += amp * env * v
+
+    rnd = random.Random(11)
+    for ci, ch in enumerate(chords):
+        s0 = ci * seg
+        note(s0, seg, hz(ch[0] - 12), 0.30, 1.2 * sr / sr, int(2.5 * sr))          # soft bass
+        for m in ch[1:]:
+            note(s0, seg, hz(m), 0.16, 1.6, int(2.5 * sr))                           # pad chord
+        # Gentle bell sparkles from the chord, an octave up, every ~1.33 s.
+        for b in range(6):
+            m = rnd.choice(ch[1:]) + 12
+            note(s0 + int(b * seg / 6) + rnd.randint(0, sr // 8), 1, hz(m), 0.10, 0.01, int(2.4 * sr), bell=True)
+    # Very light smoothing (warmer top end), applied circularly so the seam stays clean.
+    for _ in range(2):
+        prev = out[-1]
+        for i in range(n):
+            cur = out[i]; out[i] = 0.6 * cur + 0.4 * prev; prev = cur
+    peak = max(abs(x) for x in out) or 1
+    return [0.5 * x / peak for x in out], sr
 
 if __name__ == '__main__':
     os.makedirs(RAW, exist_ok=True)

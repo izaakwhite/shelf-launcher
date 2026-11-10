@@ -4,7 +4,9 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-TV="${TV:-192.168.1.115:5555}"
+# TV address: $TV, or the first line of .tv-address (git-ignored), e.g. 192.168.1.50:5555
+TV="${TV:-$(head -1 .tv-address 2>/dev/null)}"
+[ -n "$TV" ] || { echo "Set TV=ip:5555 or put it in .tv-address"; exit 1; }
 PKG=app.shelf.launcher
 ACT=app.shelf.launcher/.HomeActivity
 APK=app/build/outputs/apk/release/app-release.apk

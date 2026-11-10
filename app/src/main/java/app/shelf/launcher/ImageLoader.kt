@@ -76,7 +76,7 @@ class ImageLoader(private val ctx: Context) {
     suspend fun tile(item: GridItem, w: Int, h: Int) = load(tileKey(item, w, h)) { render(item, w, h) }
     suspend fun hero(item: GridItem, w: Int, h: Int) = load(heroKey(item, w, h)) { render(item, w, h) }
 
-    /** A tiny, heavily blurred version of the tile: used as the Top Shelf color wash. */
+    /** A tiny, heavily blurred version of the tile: used as the hero area colour wash. */
     suspend fun wash(item: GridItem) = load(washKey(item)) {
         val small = render(item, 64, 36)
         Blur.blur(small, radius = 5).also { fadeAlpha(it, 0.45f, 1f, dim = 0.5f) }

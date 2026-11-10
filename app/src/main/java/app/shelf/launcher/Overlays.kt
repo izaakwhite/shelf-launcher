@@ -1,6 +1,13 @@
 package app.shelf.launcher
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,7 +75,7 @@ private fun SheetButton(text: String, onClick: () -> Unit, modifier: Modifier = 
     }
 }
 
-/** Small in-launcher settings panel, slides in from the right like tvOS. */
+/** Small in-launcher settings panel, slides in from the right. */
 @Composable
 fun SettingsPanel(
     settings: Settings,
@@ -77,6 +84,7 @@ fun SettingsPanel(
     onChange: ((Settings) -> Settings) -> Unit,
     onHidden: () -> Unit,
     onAndroidSettings: () -> Unit,
+    onLicenses: () -> Unit,
 ) {
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { withFrameNanos { }; runCatching { first.requestFocus() } }
@@ -111,6 +119,7 @@ fun SettingsPanel(
             Row("Reduce motion", onOff(settings.reduceMotion)) { onChange { it.copy(reduceMotion = !it.reduceMotion) } }
             Row("Hidden apps", "$hiddenCount", onClick = onHidden)
             Row("Android settings", "›", onClick = onAndroidSettings)
+            Row("Open-source licenses", "›", onClick = onLicenses)
             Text(
                 "Wallpaper: push an image to\n$wallpaperPath/wallpaper.jpg",
                 style = Type.small, color = Palette.textDim, modifier = Modifier.padding(top = 18.dp),
@@ -170,6 +179,43 @@ fun HiddenAppsScreen(hidden: List<AppEntry>, m: Metrics, motion: Boolean, onUnhi
                     )
                 }
             }
+        }
+    }
+}
+
+/** Third-party notices + license texts shipped in assets/licenses. Up/Down scroll, Back closes. */
+@Composable
+fun LicensesScreen() {
+    val ctx = LocalContext.current
+    val text = remember {
+        listOf("NOTICES.md", "Apache-2.0.txt", "Inter-OFL.txt").joinToString("\n\n────────\n\n") { f ->
+            runCatching { ctx.assets.open("licenses/$f").bufferedReader().use { it.readText() } }.getOrDefault("")
+        }
+    }
+    val scroll = androidx.compose.foundation.rememberScrollState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { withFrameNanos { }; runCatching { focus.requestFocus() } }
+    Box(Modifier.fillMaxSize().glass(0.dp, tint = Color(0xE6061626), sheen = 0f)) {
+        Column(
+            Modifier
+                .padding(horizontal = 110.dp, vertical = 40.dp)
+                .focusRequester(focus)
+                .onPreviewKeyEvent { ev ->
+                    val c = ev.nativeKeyEvent.keyCode
+                    if (ev.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
+                        (c == android.view.KeyEvent.KEYCODE_DPAD_DOWN || c == android.view.KeyEvent.KEYCODE_DPAD_UP)
+                    ) {
+                        val d = if (c == android.view.KeyEvent.KEYCODE_DPAD_DOWN) 400 else -400
+                        scope.launch { scroll.animateScrollBy(d.toFloat()) }
+                        true
+                    } else false
+                }
+                .focusable()
+                .verticalScroll(scroll),
+        ) {
+            Text("Open-source licenses", style = Type.panelTitle, modifier = Modifier.padding(bottom = 16.dp))
+            Text(text, style = Type.small.copy(color = Palette.text, fontSize = 13.sp))
         }
     }
 }

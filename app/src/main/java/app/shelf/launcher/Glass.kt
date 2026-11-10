@@ -40,7 +40,7 @@ import kotlin.math.roundToInt
 val LocalBackdrop = compositionLocalOf<Backdrop?> { null }
 
 /**
- * Pseudo "liquid glass": the panel shows the pre-blurred backdrop at its own screen position
+ * Frosted glass: the panel shows the pre-blurred backdrop at its own screen position
  * (so it reads as frosted glass with zero real-time blur), plus a tint, a top specular sheen,
  * a faint bottom glow, and a bright rim that fades down the sides.
  * Only for panels that don't move much — the sampling position is read from layout.

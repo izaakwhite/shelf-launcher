@@ -73,7 +73,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Calendar
 import java.util.Date
 import kotlin.math.PI
 import kotlin.math.abs
@@ -218,7 +217,7 @@ fun WaveScreen(
     ) {
         val W = maxWidth; val H = maxHeight
         val wPx = with(density) { W.toPx() }
-        val hue by produceState(monthHue(), motion) {
+        val hue by produceState(225f, motion) {
             if (!motion) return@produceState
             while (true) { delay(250); value = (value + 0.5f) % 360f }
         }
@@ -324,11 +323,20 @@ fun WaveScreen(
                             },
                         )
                     }
+                    // One font size for every row; the selected label grows by animated scale, so the text
+                    // never re-lays-out (which made it jump).
+                    val ts by animateFloatAsState(if (isSel) 1f else 0.8f, spring(0.8f, 380f), label = "ts")
                     Text(
                         item.label,
-                        style = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = if (isSel) 24.sp else 19.sp, color = Color.White),
+                        style = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 24.sp, color = Color.White),
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 0.dp, end = 8.dp).widthIn(max = W * 0.36f),
+                        modifier = Modifier
+                            .padding(start = 0.dp, end = 8.dp)
+                            .widthIn(max = W * 0.36f)
+                            .graphicsLayer {
+                                scaleX = ts; scaleY = ts
+                                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+                            },
                     )
                 }
             }
@@ -471,12 +479,6 @@ private fun WaveClock(modifier: Modifier) {
             Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.6f))),
         ))
     }
-}
-
-private fun monthHue(): Float {
-    // A different tint every month, like the old dashboards.
-    val hues = floatArrayOf(205f, 215f, 140f, 95f, 175f, 45f, 25f, 190f, 280f, 30f, 225f, 350f)
-    return hues[Calendar.getInstance().get(Calendar.MONTH)]
 }
 
 private fun hsl(h: Float, s: Float, l: Float) = Color(ColorUtils.HSLToColor(floatArrayOf(h, s, l)))

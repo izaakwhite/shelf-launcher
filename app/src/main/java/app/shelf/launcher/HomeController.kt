@@ -15,7 +15,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-enum class Overlay { NONE, SETTINGS, HIDDEN }
+enum class Overlay { NONE, SETTINGS, HIDDEN, LICENSES }
 
 data class Arranged(val dock: List<AppEntry>, val main: List<AppEntry>)
 

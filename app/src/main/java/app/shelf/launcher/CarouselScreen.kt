@@ -160,7 +160,7 @@ fun CarouselScreen(
             )
         }
 
-        // ---- hero ("top shelf") card ----
+        // ---- hero card ----
         Box(
             Modifier
                 .align(Alignment.TopCenter)

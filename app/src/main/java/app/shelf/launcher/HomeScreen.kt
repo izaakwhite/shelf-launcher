@@ -158,7 +158,7 @@ fun HomeScreen(
 
         Background(backdrop)
 
-        // ---- Top Shelf ----
+        // ---- hero banner area ----
         val focusedItem = itemsByKey[controller.focusedKey]
         Box(
             Modifier
@@ -212,7 +212,7 @@ fun HomeScreen(
                                         app.images.tile(item, tileWpx, tileHpx)
                                     }
                                     val isApp = item is GridItem.App
-                                    // Banner tiles get the tvOS label under the focused tile; generated
+                                    // Banner tiles get a label under the focused tile; generated
                                     // tiles already carry their name inside the tile.
                                     val showLabel = item is GridItem.App && item.app.hasBanner
                                     ShelfTile(

@@ -221,7 +221,9 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
                 onChange = { f -> scope.launch { app.prefs.updateSettings(f) } },
                 onHidden = { controller.overlay = Overlay.HIDDEN },
                 onAndroidSettings = { controller.open(GridItem.System(SystemKind.ANDROID_SETTINGS, "Settings")) },
+                onLicenses = { controller.overlay = Overlay.LICENSES },
             )
+            Overlay.LICENSES -> LicensesScreen()
             Overlay.HIDDEN -> HiddenAppsScreen(
                 hidden = list.filter { it.key in controller.layout.hidden },
                 m = m, motion = !s.reduceMotion,

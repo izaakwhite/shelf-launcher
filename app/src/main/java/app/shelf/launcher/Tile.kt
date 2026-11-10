@@ -71,7 +71,7 @@ const val FOCUS_SCALE = 1.1f
 val TileCorner = 12.dp
 
 /**
- * One grid tile with the tvOS-style focus treatment:
+ * One grid tile with the TV-style focus treatment:
  * spring scale + growing shadow ("lift"), a one-shot diagonal shine, a parallax tilt from the
  * direction focus arrived, and a nudge when pressing toward an edge with nowhere to go.
  */
