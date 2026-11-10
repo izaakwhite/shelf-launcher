@@ -47,6 +47,18 @@ The styles are inspired by familiar TV and console home screens, but every icon,
 here is original. No designs, artwork, sounds or code were copied from any other product. See [LEGAL.md](LEGAL.md)
 and [docs/design-origins.md](docs/design-origins.md).
 
+## CI/CD
+
+`.github/workflows/ci.yml` runs unit tests and builds on every PR and push. On `main` it also tags the built commit
+`v<VERSION>-b<build>` (VERSION comes from `.versions`), publishes a GitHub Release with the APK, and appends a
+`build | version | commit | date` line to `.versions`.
+
+**Signing:** CI builds are signed with a throwaway debug key unless you add these repository secrets, and Android won't
+install an update signed with a different key over an older build: `SHELF_KEYSTORE_PATH` (a path you restore from a
+secret), `SHELF_KEYSTORE_PASSWORD`, `SHELF_KEY_ALIAS`, `SHELF_KEY_PASSWORD`. Until then, uninstall before sideloading a release.
+
+Tests: `./gradlew :app:testDebugUnitTest` (unit) and `./e2e/run.sh` (drives a real TV; add `--perf` for frame stats).
+
 ## License
 
 Apache-2.0 (`LICENSE`). Third-party components are listed in `THIRD_PARTY_NOTICES.md`; the Inter typeface is

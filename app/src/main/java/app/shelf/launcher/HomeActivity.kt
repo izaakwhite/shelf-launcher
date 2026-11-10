@@ -20,6 +20,8 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.snapshotFlow
+import android.util.Log
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.tv.material3.MaterialTheme
@@ -169,6 +171,13 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
     activity.settingsNow = s
     activity.controllerNow = controller
     LaunchedEffect(s.style, s.music) { activity.updateMusic() }
+    // One log line per UI state change; the end-to-end tests (e2e/run.sh) read these from logcat.
+    LaunchedEffect(s.style) { Log.i("ShelfState", "style=${s.style}") }
+    LaunchedEffect(Unit) {
+        snapshotFlow { Triple(controller.focusedKey, controller.overlay, controller.editKey) }.collect { (f, o, e) ->
+            Log.i("ShelfState", "focus=$f overlay=$o edit=$e")
+        }
+    }
 
     val carouselApps = remember(arranged) { (arranged.dock + arranged.main).map { GridItem.App(it) } }
     val pills = remember(inputs, s.showInputs) {

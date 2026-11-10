@@ -1,0 +1,5 @@
+# Shelf version file — the single source of truth for the app version.
+# Bump VERSION (semver) by hand when releasing something new. CI appends one line per published build below
+# and tags that commit as v<VERSION>-b<BUILD>.
+VERSION=0.3.0
+# build | version | commit | date (UTC)
