@@ -299,6 +299,7 @@ fun WaveScreen(
             val anchorY = H * 0.58f
             val iconPx = with(density) { 72.dp.toPx() }.roundToInt()
             c.items.forEachIndexed { i, item ->
+                if (abs(i - sel) > 6) return@forEachIndexed   // far rows are invisible; skip their layers
                 val isSel = id == current?.id && i == sel
                 val s by animateFloatAsState(if (isSel) 1f else 0.62f, spring(0.7f, 380f), label = "is")
                 Row(
@@ -340,11 +341,8 @@ fun WaveScreen(
                         } else 0f
                         if (img != null) Image(
                             img, null, filterQuality = FilterQuality.Low,
-                            modifier = Modifier.fillMaxSize().graphicsLayer {
-                                rotationZ = wiggle
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(72.dp * ImageLoader.ICON_CORNER_FRACTION)
-                                clip = item is GridItem.App
-                            },
+                            // App icons already have rounded corners baked in, so no live clip is needed.
+                            modifier = Modifier.fillMaxSize().graphicsLayer { rotationZ = wiggle },
                         )
                     }
                     // One font size for every row; the selected label grows by animated scale, so the text
@@ -367,7 +365,7 @@ fun WaveScreen(
         }
 
         // ---- info panel on the right ----
-        Box(Modifier.align(Alignment.TopEnd).padding(top = H * 0.22f, end = W * 0.058f).width(W * 0.34f).graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
+        Box(Modifier.align(Alignment.TopEnd).padding(top = H * 0.22f, end = W * 0.058f).width(W * 0.34f)) {
             WaveInfoPanel(selected, controller, W * 0.34f, motion)
         }
     }
@@ -381,8 +379,9 @@ private fun WaveInfoPanel(selected: GridItem?, controller: HomeController, panel
     val item = shown ?: return
     androidx.compose.runtime.key(item.key) {
         val fade = remember { Animatable(if (motion) 0f else 1f) }
-        LaunchedEffect(Unit) { fade.animateTo(1f, tween(200)) }
-        Box(Modifier.graphicsLayer { alpha = fade.value }) {
+        LaunchedEffect(Unit) { fade.animateTo(1f, tween(160)) }
+        // Text and image never overlap, so per-draw alpha is exact and avoids a full offscreen buffer.
+        Box(Modifier.graphicsLayer { alpha = fade.value; compositingStrategy = CompositingStrategy.ModulateAlpha }) {
             WaveInfo(item, editing = controller.editKey == item.key, panelW = panelW)
         }
     }
@@ -426,14 +425,11 @@ private fun WaveInfo(item: GridItem, editing: Boolean, panelW: androidx.compose.
         val img = if (item is GridItem.App && !wide) {
             rememberImage(app.images.iconKey(item, wPx)) { app.images.icon(item, wPx) }
         } else {
-            rememberImage(app.images.heroKey(item, wPx, hPx)) { app.images.hero(item, wPx, hPx) }
+            val rPx = with(density) { 14.dp.toPx() }.roundToInt()
+            rememberImage(app.images.waveHeroKey(item, wPx, hPx, rPx)) { app.images.waveHero(item, wPx, hPx, rPx) }
         }
-        Box(
-            Modifier.size(imgW, imgH).graphicsLayer {
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(if (wide) 14.dp else imgW * ImageLoader.ICON_CORNER_FRACTION)
-                clip = true
-            },
-        ) {
+        // Corners are baked into both images (icon and hero), so there is no live clip here.
+        Box(Modifier.size(imgW, imgH)) {
             if (img != null) Image(img, null, filterQuality = FilterQuality.Low, modifier = Modifier.fillMaxSize())
         }
         Text(item.label, style = Type.shelfTitle.copy(fontSize = 30.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 18.dp))

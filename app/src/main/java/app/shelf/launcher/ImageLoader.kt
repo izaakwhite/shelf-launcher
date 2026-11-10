@@ -76,6 +76,10 @@ class ImageLoader(private val ctx: Context) {
     suspend fun tile(item: GridItem, w: Int, h: Int) = load(tileKey(item, w, h)) { render(item, w, h) }
     suspend fun hero(item: GridItem, w: Int, h: Int) = load(heroKey(item, w, h)) { render(item, w, h) }
 
+    /** Wave's info-panel hero: the tile with rounded corners baked in (no live GPU clip when drawn). */
+    fun waveHeroKey(item: GridItem, w: Int, h: Int, r: Int) = "whero|${stamp(item)}|$w|$h|$r"
+    suspend fun waveHero(item: GridItem, w: Int, h: Int, r: Int) = load(waveHeroKey(item, w, h, r)) { roundCorners(render(item, w, h), r.toFloat()) }
+
     /** A tiny, heavily blurred version of the tile: used as the hero area colour wash. */
     suspend fun wash(item: GridItem) = load(washKey(item)) {
         val small = render(item, 64, 36)
