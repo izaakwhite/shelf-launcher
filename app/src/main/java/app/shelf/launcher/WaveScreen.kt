@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.inset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -231,7 +232,7 @@ fun WaveScreen(
                 ),
             ),
         )
-        WaveLayer(motion, wPx.roundToInt(), Modifier.align(Alignment.TopStart).padding(top = H * 0.46f))
+        WaveLayer(motion, wPx.roundToInt(), Modifier.align(Alignment.TopStart).padding(top = H * 0.34f))
 
         // ---- clock + date, top right ----
         WaveClock(Modifier.align(Alignment.TopEnd).padding(top = H * 0.05f, end = W * 0.058f))
@@ -258,10 +259,33 @@ fun WaveScreen(
                     },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Canvas(Modifier.size(28.dp).graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) { drawCategoryIcon(c.icon) }
+                Canvas(Modifier.size(36.dp).graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
+                    // Inset leaves room for the soft glow around the focused category's icon.
+                    inset(size.width * 0.11f) { drawCategoryIcon(c.icon, focusedCat) }
+                }
                 Text(
                     c.title, style = Type.small.copy(color = Color.White, fontSize = 12.sp), maxLines = 1,
                     modifier = Modifier.padding(top = 4.dp).graphicsLayer { alpha = if (focusedCat) 1f else 0f },
+                )
+            }
+        }
+
+        // ---- breathing halo behind the selected icon ----
+        run {
+            val breathe = if (motion) {
+                rememberInfiniteTransition(label = "halo").animateFloat(
+                    0.16f, 0.40f,
+                    infiniteRepeatable(tween(2600, easing = androidx.compose.animation.core.FastOutSlowInEasing), androidx.compose.animation.core.RepeatMode.Reverse),
+                    label = "halo",
+                ).value
+            } else 0.28f
+            if (current?.items?.isNotEmpty() == true) {
+                Box(
+                    Modifier
+                        .offset(x = anchorX - 95.dp, y = H * 0.58f - 95.dp)
+                        .size(190.dp)
+                        .graphicsLayer { alpha = breathe }
+                        .background(Brush.radialGradient(listOf(Color.White, Color.White.copy(alpha = 0.25f), Color.Transparent))),
                 )
             }
         }
@@ -275,6 +299,7 @@ fun WaveScreen(
             val anchorY = H * 0.58f
             val iconPx = with(density) { 72.dp.toPx() }.roundToInt()
             c.items.forEachIndexed { i, item ->
+                if (abs(i - sel) > 6) return@forEachIndexed   // far rows are invisible; skip their layers
                 val isSel = id == current?.id && i == sel
                 val s by animateFloatAsState(if (isSel) 1f else 0.62f, spring(0.7f, 380f), label = "is")
                 Row(
@@ -316,11 +341,8 @@ fun WaveScreen(
                         } else 0f
                         if (img != null) Image(
                             img, null, filterQuality = FilterQuality.Low,
-                            modifier = Modifier.fillMaxSize().graphicsLayer {
-                                rotationZ = wiggle
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(72.dp * ImageLoader.ICON_CORNER_FRACTION)
-                                clip = item is GridItem.App
-                            },
+                            // App icons already have rounded corners baked in, so no live clip is needed.
+                            modifier = Modifier.fillMaxSize().graphicsLayer { rotationZ = wiggle },
                         )
                     }
                     // One font size for every row; the selected label grows by animated scale, so the text
@@ -343,7 +365,7 @@ fun WaveScreen(
         }
 
         // ---- info panel on the right ----
-        Box(Modifier.align(Alignment.TopEnd).padding(top = H * 0.22f, end = W * 0.058f).width(W * 0.34f).graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
+        Box(Modifier.align(Alignment.TopEnd).padding(top = H * 0.22f, end = W * 0.058f).width(W * 0.34f)) {
             WaveInfoPanel(selected, controller, W * 0.34f, motion)
         }
     }
@@ -357,8 +379,9 @@ private fun WaveInfoPanel(selected: GridItem?, controller: HomeController, panel
     val item = shown ?: return
     androidx.compose.runtime.key(item.key) {
         val fade = remember { Animatable(if (motion) 0f else 1f) }
-        LaunchedEffect(Unit) { fade.animateTo(1f, tween(200)) }
-        Box(Modifier.graphicsLayer { alpha = fade.value }) {
+        LaunchedEffect(Unit) { fade.animateTo(1f, tween(160)) }
+        // Text and image never overlap, so per-draw alpha is exact and avoids a full offscreen buffer.
+        Box(Modifier.graphicsLayer { alpha = fade.value; compositingStrategy = CompositingStrategy.ModulateAlpha }) {
             WaveInfo(item, editing = controller.editKey == item.key, panelW = panelW)
         }
     }
@@ -402,14 +425,11 @@ private fun WaveInfo(item: GridItem, editing: Boolean, panelW: androidx.compose.
         val img = if (item is GridItem.App && !wide) {
             rememberImage(app.images.iconKey(item, wPx)) { app.images.icon(item, wPx) }
         } else {
-            rememberImage(app.images.heroKey(item, wPx, hPx)) { app.images.hero(item, wPx, hPx) }
+            val rPx = with(density) { 14.dp.toPx() }.roundToInt()
+            rememberImage(app.images.waveHeroKey(item, wPx, hPx, rPx)) { app.images.waveHero(item, wPx, hPx, rPx) }
         }
-        Box(
-            Modifier.size(imgW, imgH).graphicsLayer {
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(if (wide) 14.dp else imgW * ImageLoader.ICON_CORNER_FRACTION)
-                clip = true
-            },
-        ) {
+        // Corners are baked into both images (icon and hero), so there is no live clip here.
+        Box(Modifier.size(imgW, imgH)) {
             if (img != null) Image(img, null, filterQuality = FilterQuality.Low, modifier = Modifier.fillMaxSize())
         }
         Text(item.label, style = Type.shelfTitle.copy(fontSize = 30.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 18.dp))
@@ -427,15 +447,19 @@ private fun WaveInfo(item: GridItem, editing: Boolean, panelW: androidx.compose.
 }
 
 
-/** Two pre-rendered ribbon bitmaps slid at different speeds. Animation is a bitmap blit per frame. */
+/**
+ * Two pre-rendered ribbons slid at different speeds: the main bundle of light threads over a soft
+ * translucent surface, and a thin faster ribbon. Each bitmap is rendered at half size and stretched 2x when
+ * blitted, so the wave is large without costing texture memory. The drift is stepped at ~12 fps: it is far
+ * too slow to see the steps, and it lets most frames skip redrawing the ribbon (this GPU is fill-rate bound).
+ */
 @Composable
 private fun WaveLayer(motion: Boolean, screenWpx: Int, modifier: Modifier) {
     val ribbons by produceState(WaveArtCache.a?.let { it to WaveArtCache.b!! }) {
         if (value == null) {
             value = withContext(Dispatchers.Default) {
-                // Tight heights: every transparent pixel blitted still costs fill rate on this GPU.
-                val a = WaveArt.render(3840, 250, period = 1920, amp = 62f, lines = 16, phase = 0f, surface = true).asImageBitmap()
-                val b = WaveArt.render(3840, 150, period = 1280, amp = 40f, lines = 9, phase = 1.3f, surface = false).asImageBitmap()
+                val a = WaveArt.render(1920, 210, period = 960, amp = 52f, lines = 16, phase = 0f, surface = true, px = 0.5f).asImageBitmap()
+                val b = WaveArt.render(1920, 120, period = 640, amp = 32f, lines = 9, phase = 1.3f, surface = false, px = 0.5f).asImageBitmap()
                 WaveArtCache.a = a; WaveArtCache.b = b
                 a to b
             }
@@ -445,19 +469,22 @@ private fun WaveLayer(motion: Boolean, screenWpx: Int, modifier: Modifier) {
     val t = if (motion) {
         rememberInfiniteTransition(label = "wave").animateFloat(0f, 1f, infiniteRepeatable(tween(90_000, easing = LinearEasing)), label = "t")
     } else null
+    // Only changes ~12x a second, so the draw below is invalidated that often rather than every frame.
+    val step by remember(t) { androidx.compose.runtime.derivedStateOf { ((t?.value ?: 0.25f) * 1080f).toInt() } }
     val density = LocalDensity.current
     Box(
         modifier
             .fillMaxWidth()
-            .height(with(density) { 300.toDp() })
+            .height(with(density) { 480.toDp() })
             .drawBehind {
-                val p = t?.value ?: 0.25f
-                val sway = sin(p * 2 * PI.toFloat() * 6) * 10f
-                val sa = ((p * 1920 * 3) % 1920).toInt()
-                val sb = (1280 - ((p * 1280 * 5) % 1280)).toInt() % 1280
-                val w = screenWpx.coerceAtMost(3840 - 1920)
-                drawImage(r.first, srcOffset = IntOffset(sa, 0), srcSize = IntSize(w, 250), dstOffset = IntOffset(0, 20 + sway.toInt()), dstSize = IntSize(w, 250), filterQuality = FilterQuality.Low)
-                drawImage(r.second, srcOffset = IntOffset(sb, 0), srcSize = IntSize(w, 150), dstOffset = IntOffset(0, (90 - sway).toInt()), dstSize = IntSize(w, 150), filterQuality = FilterQuality.Low, alpha = 0.8f)
+                val p = step / 1080f
+                val sway = sin(p * 2 * PI.toFloat() * 6) * 12f
+                val half = (screenWpx / 2 + 1).coerceAtMost(1920 - 960)   // source px that cover the screen at 2x
+                val sa = ((p * 960 * 3) % 960).toInt()
+                val sb = (640 - ((p * 640 * 5) % 640)).toInt() % 640
+                val w2 = half * 2
+                drawImage(r.first, srcOffset = IntOffset(sa, 0), srcSize = IntSize(half, 210), dstOffset = IntOffset(0, 30 + sway.toInt()), dstSize = IntSize(w2, 420), filterQuality = FilterQuality.Low)
+                drawImage(r.second, srcOffset = IntOffset(sb, 0), srcSize = IntSize(half, 120), dstOffset = IntOffset(0, (150 - sway).toInt()), dstSize = IntSize(w2, 240), filterQuality = FilterQuality.Low, alpha = 0.85f)
             },
     )
 }
@@ -483,10 +510,14 @@ private fun WaveClock(modifier: Modifier) {
 
 private fun hsl(h: Float, s: Float, l: Float) = Color(ColorUtils.HSLToColor(floatArrayOf(h, s, l)))
 
-private fun DrawScope.drawCategoryIcon(icon: CatIcon) {
+private fun DrawScope.drawCategoryIcon(icon: CatIcon, glow: Boolean) {
+    if (glow) paintCategoryIcon(icon, 3.4f, Color.White.copy(alpha = 0.22f))
+    paintCategoryIcon(icon, 1f, Color.White)
+}
+
+private fun DrawScope.paintCategoryIcon(icon: CatIcon, mul: Float, c: Color) {
     val w = size.width; val h = size.height
-    val st = Stroke(width = w * 0.06f, cap = StrokeCap.Round)
-    val c = Color.White
+    val st = Stroke(width = w * 0.06f * mul, cap = StrokeCap.Round)
     when (icon) {
         CatIcon.STAR -> {
             val p = Path()
