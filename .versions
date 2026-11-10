@@ -2,6 +2,6 @@
 # VERSION is bumped by the release PR (release-please); or edit it by hand in a normal PR. CI appends one line per published build below
 # and tags that commit as v<VERSION>-b<BUILD>.
 # x-release-please-start-version
-VERSION=0.4.0
+VERSION=0.5.0
 # x-release-please-end
 # build | version | commit | date (UTC)
