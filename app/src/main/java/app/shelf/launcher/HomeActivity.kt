@@ -60,7 +60,7 @@ class HomeActivity : ComponentActivity() {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
                     ShelfRoot(app, this@HomeActivity)
-                    SplashOverlay(app.session)
+                    if (SPLASH_ENABLED) SplashOverlay(app.session)
                 }
             }
         }

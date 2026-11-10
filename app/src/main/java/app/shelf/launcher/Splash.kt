@@ -41,6 +41,12 @@ import kotlinx.coroutines.launch
 private val QuarticInOut = Easing { t -> if (t < 0.5f) 8f * t * t * t * t else 1f - Math.pow((-2.0 * t + 2.0), 4.0).toFloat() / 2f }
 
 /**
+ * Master switch for the cold-start splash. It is currently unwired (off). To bring it back: set this to true and
+ * point the theme's `android:windowBackground` at `@color/splash_bg` (white) so there is no dark flash before it draws.
+ */
+const val SPLASH_ENABLED = false
+
+/**
  * Cold-start splash on a white screen: a thin black line draws out from the centre across the full
  * width (quartic ease), the SHELF letters fade in above it, a soft highlight glistens across the
  * letters on a loop, and the whole screen fades out once the home screen has loaded.
