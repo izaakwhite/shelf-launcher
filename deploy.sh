@@ -57,6 +57,10 @@ if ! with_timeout 90 adb -s "$TV" shell pm install -r "$REMOTE"; then
 fi
 A shell rm -f "$REMOTE"
 
+# Ahead-of-time compile: this SoC is slow and JIT warm-up makes the first minutes janky.
+echo "Compiling (AOT)..."
+with_timeout 120 adb -s "$TV" shell cmd package compile -m speed -f $PKG >/dev/null || echo "AOT compile skipped"
+
 HOME_AFTER=$(current_home)
 if [ "$HOME_AFTER" != "$HOME_BEFORE" ] && [[ "$HOME_BEFORE" == */* ]] && [[ "$HOME_BEFORE" != *ResolverActivity* ]]; then
   echo "Default home was reset by the install; restoring $HOME_BEFORE"
