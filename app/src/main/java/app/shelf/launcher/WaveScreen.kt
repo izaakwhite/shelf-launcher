@@ -241,7 +241,7 @@ fun WaveScreen(
         // Category bar sits top-left, inside the overscan-safe margins.
         val barY = H * 0.08f
         val anchorX = W * 0.058f + 34.dp
-        val catPitch = 96.dp
+        val catPitch = 78.dp
         val catPitchPx = with(density) { catPitch.toPx() }
         categories.forEachIndexed { ci, c ->
             val focusedCat = ci == clampCat()
@@ -250,8 +250,8 @@ fun WaveScreen(
             val s by animateFloatAsState(if (focusedCat) 1.1f else 0.85f, spring(0.7f, 400f), label = "cs")
             Column(
                 Modifier
-                    .offset(x = anchorX - 34.dp, y = barY)
-                    .width(68.dp)
+                    .offset(x = anchorX - 30.dp, y = barY)
+                    .width(60.dp)
                     .graphicsLayer {
                         translationX = (ci - catAnim.value) * catPitchPx
                         compositingStrategy = CompositingStrategy.ModulateAlpha
@@ -259,10 +259,10 @@ fun WaveScreen(
                     },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Canvas(Modifier.size(36.dp).graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) { drawCategoryIcon(c.icon) }
+                Canvas(Modifier.size(28.dp).graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) { drawCategoryIcon(c.icon) }
                 Text(
-                    c.title, style = Type.small.copy(color = Color.White), maxLines = 1,
-                    modifier = Modifier.padding(top = 6.dp).graphicsLayer { alpha = if (focusedCat) 1f else 0f },
+                    c.title, style = Type.small.copy(color = Color.White, fontSize = 12.sp), maxLines = 1,
+                    modifier = Modifier.padding(top = 4.dp).graphicsLayer { alpha = if (focusedCat) 1f else 0f },
                 )
             }
         }
@@ -273,7 +273,7 @@ fun WaveScreen(
             val pitchPx = with(density) { 64.dp.toPx() }
             val clearPx = with(density) { 22.dp.toPx() }      // extra room around the selected item
             val curvePx = with(density) { 90.dp.toPx() }
-            val anchorY = H * 0.50f
+            val anchorY = H * 0.58f
             val iconPx = with(density) { 72.dp.toPx() }.roundToInt()
             c.items.forEachIndexed { i, item ->
                 val isSel = id == current?.id && i == sel
@@ -293,7 +293,7 @@ fun WaveScreen(
                             alpha = when {
                                 ar < 0.5f -> 1f
                                 rel < -2.1f -> ((rel + 2.7f) / 0.6f).coerceIn(0f, 0.6f) // two items fit above; keep clear of the bar
-                                rel > 2.2f -> (0.75f * (3.4f - rel) / 1.2f).coerceIn(0f, 0.75f)
+                                rel > 1.6f -> (0.75f * (2.8f - rel) / 1.2f).coerceIn(0f, 0.75f)
                                 else -> (0.95f - 0.18f * ar).coerceIn(0.2f, 0.85f)
                             }
                         },
