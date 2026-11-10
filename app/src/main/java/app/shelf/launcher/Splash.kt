@@ -9,6 +9,14 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Column
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,25 +55,28 @@ private val QuarticInOut = Easing { t -> if (t < 0.5f) 8f * t * t * t * t else 1
 const val SPLASH_ENABLED = false
 
 /**
- * Cold-start splash on a white screen: a thin black line draws out from the centre across the full
- * width (quartic ease), the SHELF letters fade in above it, a soft highlight glistens across the
- * letters on a loop, and the whole screen fades out once the home screen has loaded.
- * Shown once per process. Only alpha / translation / a draw-phase gradient are animated, so it stays
- * cheap on this TV's weak GPU.
+ * Cold-start splash on a white screen, centred as one group: SHELF in light letters with a thicker black
+ * line under it that drops in and bounces to rest (no sideways wipe). The line is wider than the letters,
+ * so it has padding either side, and a soft glisten keeps sweeping across the letters. The whole screen
+ * fades out once the home screen has loaded. Shown once per process. Only alpha / translation / a
+ * draw-phase gradient are animated, so it stays cheap on this TV's weak GPU.
  */
 @Composable
 fun SplashOverlay(session: Session) {
     if (session.splashDone) return
-    val line = remember { Animatable(0f) }
+    val drop = remember { Animatable(0f) }      // 0 = high above its place, 1 = at rest (overshoots when it bounces)
+    val lineAlpha = remember { Animatable(0f) }
     val letters = remember { Animatable(0f) }
     val exit = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
         coroutineScope {
-            launch { line.animateTo(1f, tween(1100, easing = QuarticInOut)) }
-            launch { delay(700); letters.animateTo(1f, tween(800, easing = FastOutSlowInEasing)) }
+            launch { lineAlpha.animateTo(1f, tween(260, easing = FastOutSlowInEasing)) }
+            // A springy drop with real overshoot: it lands, rebounds a few times and settles.
+            launch { drop.animateTo(1f, spring(dampingRatio = 0.34f, stiffness = 90f)) }
+            launch { delay(750); letters.animateTo(1f, tween(800, easing = FastOutSlowInEasing)) }
             // Hold long enough to see one full glisten, and until home is composed.
-            launch { delay(2300); while (!session.homeReady.value) withFrameNanos { } }
+            launch { delay(2400); while (!session.homeReady.value) withFrameNanos { } }
         }
         exit.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
         session.splashDone = true
@@ -82,47 +93,52 @@ fun SplashOverlay(session: Session) {
             .fillMaxSize()
             .graphicsLayer { alpha = 1f - exit.value }
             .background(Color.White),
+        contentAlignment = Alignment.Center,
     ) {
-        // Thin black line, growing from the centre to both edges.
-        Box(
-            Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .height(2.dp)
-                .graphicsLayer {
-                    scaleX = line.value
-                    alpha = (line.value * 3f).coerceIn(0f, 1f)
-                }
-                .background(Color.Black),
-        )
-        // Letters sit just above the line.
-        androidx.tv.material3.Text(
-            "SHELF",
-            style = TextStyle(
-                fontFamily = Inter, fontWeight = FontWeight.Light, fontSize = 54.sp,
-                letterSpacing = 22.sp, color = Color(0xFF0B0D12),
-            ),
-            modifier = Modifier
-                .align(Alignment.Center)
-                .offset(y = (-52).dp)
-                .graphicsLayer {
-                    alpha = letters.value
-                    translationY = (1f - letters.value) * 10f
-                    compositingStrategy = CompositingStrategy.Offscreen
-                }
-                .drawWithContent {
-                    drawContent()
-                    // A soft silvery band sweeping left→right across the letters (only where letters are).
-                    val w = size.width
-                    val x = -0.5f * w + glisten * 2f * w
-                    drawRect(
-                        brush = Brush.linearGradient(
-                            colors = listOf(Color.Transparent, Color(0xFFD9DEE8).copy(alpha = 0.95f), Color.Transparent),
-                            start = Offset(x, 0f), end = Offset(x + 0.5f * w, size.height * 0.3f),
-                        ),
-                        blendMode = BlendMode.SrcAtop,
-                    )
-                },
-        )
+        // The column is as wide as the letters plus side padding; the line fills that width.
+        Column(Modifier.width(IntrinsicSize.Max), horizontalAlignment = Alignment.CenterHorizontally) {
+            androidx.tv.material3.Text(
+                "SHELF",
+                style = TextStyle(
+                    fontFamily = Inter, fontWeight = FontWeight.Light, fontSize = 54.sp,
+                    letterSpacing = 22.sp, color = Color(0xFF0B0D12),
+                ),
+                modifier = Modifier
+                    // Letter-spacing leaves a gap after the last letter; the extra start padding re-centres the glyphs.
+                    .padding(start = 22.dp, end = 0.dp)
+                    .padding(horizontal = 44.dp)
+                    .graphicsLayer {
+                        alpha = letters.value
+                        translationY = (1f - letters.value) * 10f
+                        compositingStrategy = CompositingStrategy.Offscreen
+                    }
+                    .drawWithContent {
+                        drawContent()
+                        // A soft silvery band sweeping left to right across the letters (only where letters are).
+                        val w = size.width
+                        val x = -0.5f * w + glisten * 2f * w
+                        drawRect(
+                            brush = Brush.linearGradient(
+                                colors = listOf(Color.Transparent, Color(0xFFD9DEE8).copy(alpha = 0.95f), Color.Transparent),
+                                start = Offset(x, 0f), end = Offset(x + 0.5f * w, size.height * 0.3f),
+                            ),
+                            blendMode = BlendMode.SrcAtop,
+                        )
+                    },
+            )
+            Spacer(Modifier.height(22.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .graphicsLayer {
+                        // Drops from 120 px above and bounces to rest; no sideways motion.
+                        translationY = (1f - drop.value) * -120f
+                        alpha = lineAlpha.value
+                    }
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.Black),
+            )
+        }
     }
 }
