@@ -41,6 +41,12 @@ adb connect "$(cat .tv-address)"          # accept the prompt on the TV the firs
 adb shell cmd package set-home-activity app.shelf.launcher/.HomeActivity   # make it the home screen
 ```
 
+## Design origins
+
+The styles are inspired by familiar TV and console home screens, but every icon, animation, sound and line of code
+here is original. See [docs/design-origins.md](docs/design-origins.md) for what was borrowed (ideas only) and what
+wasn't.
+
 ## License
 
 Apache-2.0 (`LICENSE`). Third-party components are listed in `THIRD_PARTY_NOTICES.md`; the Inter typeface is
