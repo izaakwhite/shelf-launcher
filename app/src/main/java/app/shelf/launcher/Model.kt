@@ -1,6 +1,9 @@
 package app.shelf.launcher
 
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 data class AppEntry(
     val key: String,          // "package/activity"
@@ -54,4 +57,8 @@ class Session {
     val homeTick = mutableIntStateOf(0)
     /** Bumped on every onResume. */
     val resumeTick = mutableIntStateOf(0)
+    /** Set once the home screen is composed; the cold-start splash waits for it. */
+    val homeReady = mutableStateOf(false)
+    /** The splash plays once per process. */
+    var splashDone by mutableStateOf(false)
 }

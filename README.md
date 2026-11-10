@@ -136,6 +136,8 @@ Delete the file to go back to the generated backdrop.
 
 ## Switch back to Projectivy
 
+[Projectivy Launcher](https://github.com/spocky) is the launcher Shelf was built to replace on this TV; its author's GitHub is linked here (the app itself is closed source, the plugins are on GitHub). Shelf is not affiliated with it.
+
 ```sh
 adb shell cmd package set-home-activity com.spocky.projengmenu/com.spocky.projengmenu.ui.home.MainActivity
 ```

@@ -57,7 +57,12 @@ class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) { ShelfRoot(app, this) }
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                    ShelfRoot(app, this@HomeActivity)
+                    SplashOverlay(app.session)
+                }
+            }
         }
         // Compose paints every pixel; the window background would be a second full-screen fill per frame.
         window.decorView.post { window.setBackgroundDrawable(null) }
@@ -170,7 +175,7 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
     }
 
     // Marks "interactive": apps + settings + layout are loaded and the home content is composed.
-    LaunchedEffect(Unit) { withFrameNanos { }; activity.reportFullyDrawn() }
+    LaunchedEffect(Unit) { withFrameNanos { }; activity.reportFullyDrawn(); app.session.homeReady.value = true }
     BackHandler(enabled = true) { controller.back() }
     activity.settingsNow = s
     activity.controllerNow = controller

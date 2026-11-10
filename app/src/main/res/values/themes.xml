@@ -1,6 +1,7 @@
 <resources>
     <style name="Theme.Shelf" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/shelf_bg</item>
+        <!-- White to match the cold-start splash, so there is no dark flash before it draws. -->
+        <item name="android:windowBackground">@color/splash_bg</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowAnimationStyle">@null</item>
@@ -10,5 +11,6 @@
         <item name="android:ambientShadowAlpha">0.3</item>
         <item name="android:spotShadowAlpha">0.6</item>
     </style>
+    <color name="splash_bg">#FFFFFFFF</color>
     <color name="shelf_bg">#FF0A0E16</color>
 </resources>
