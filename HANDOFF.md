@@ -1,9 +1,12 @@
 # Session handoff — Shelf launcher
 
-_Last updated: 2026-11-09 20:30_
+_Last updated: 2026-11-09 20:35_
+
+Repo: https://github.com/izaakwhite/shelf-launcher (**private**). Remote uses HTTPS with the `gh` credential helper
+(configured in this repo's local git config only; SSH keys aren't set up on this Mac).
 
 ## TV state right now
-- Shelf is installed and **is the default home**. Current style on the TV: **Wave** (the user liked it).
+- Shelf is installed and **is the default home**. Current style on the TV: **Wave** (the user liked it). Wave category bar shrunk and wheel moved down (20:31).
 - Projectivy is untouched. To go back:
   `adb shell cmd package set-home-activity com.spocky.projengmenu/com.spocky.projengmenu.ui.home.MainActivity`
 - If a session has to stop mid-work: restore Projectivy (command above) unless Shelf is verified working.
