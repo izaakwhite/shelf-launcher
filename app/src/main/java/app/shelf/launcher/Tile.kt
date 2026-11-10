@@ -94,6 +94,7 @@ fun ShelfTile(
     focusScale: Float = FOCUS_SCALE,
     corner: Dp = TileCorner,
     dimAlpha: Float = 0.30f,
+    bakedCorners: Boolean = false,   // image already has transparent rounded corners: skip the GPU clip
 ) {
     var focused by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -148,7 +149,7 @@ fun ShelfTile(
                     if (motion) {
                         scope.launch {
                             shine.snapTo(0f)
-                            shine.animateTo(1f, tween(800, delayMillis = 60, easing = FastOutSlowInEasing))
+                            shine.animateTo(1f, tween(1000, delayMillis = 60, easing = LinearEasing))
                         }
                         Nav.recent()?.let { d ->
                             // Arrive tilted away from where focus came from, then ease flat.
@@ -203,9 +204,9 @@ fun ShelfTile(
                     rotationX = tiltX.value; rotationY = tiltY.value
                     rotationZ = wiggle?.value ?: 0f
                     cameraDistance = 10f * this.density
-                    shadowElevation = lift * 16.dp.toPx()
+                    shadowElevation = lift * 10.dp.toPx()
                     this.shape = shape
-                    clip = true
+                    clip = !bakedCorners
                 }
                 .drawBehind {
                     if (image != null) {
@@ -221,16 +222,20 @@ fun ShelfTile(
                 .drawWithContent {
                     drawContent()
                     val dim = 1f - lift
-                    if (dim > 0.01f && dimAlpha > 0f) drawRect(Color.Black.copy(alpha = dimAlpha * dim))
+                    val cr = CornerRadius(corner.toPx())
+                    if (dim > 0.01f && dimAlpha > 0f) drawRoundRect(Color.Black.copy(alpha = dimAlpha * dim), cornerRadius = cr)
                     val p = shine.value
                     if (p > 0.001f && p < 0.999f) {
                         val w = size.width
                         val band = w * 0.5f
                         val x = -band + (w + 2 * band) * p
-                        drawRect(
-                            Brush.linearGradient(
+                        // Fade the sheen in and out over the sweep instead of letting it pop off the edge.
+                        val k = kotlin.math.sin(p * Math.PI.toFloat()).let { it * it }
+                        drawRoundRect(
+                            cornerRadius = cr,
+                            brush = Brush.linearGradient(
                                 0f to Color.Transparent,
-                                0.5f to Color.White.copy(alpha = 0.26f),
+                                0.5f to Color.White.copy(alpha = 0.30f * k),
                                 1f to Color.Transparent,
                                 start = Offset(x - band / 2, 0f),
                                 end = Offset(x + band / 2, size.height * 0.55f),

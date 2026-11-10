@@ -176,6 +176,16 @@ class ImageLoader(private val ctx: Context) {
             c.drawBitmap(iconBmp, o, o, Paint(Paint.FILTER_BITMAP_FLAG))
         }
         gloss(c, px, px)
+        return roundCorners(out, px * ICON_CORNER_FRACTION)
+    }
+
+    /** Bake rounded corners into the bitmap so the GPU never has to clip it at draw time. */
+    private fun roundCorners(src: Bitmap, r: Float): Bitmap {
+        val out = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+        Canvas(out).drawRoundRect(
+            RectF(0f, 0f, src.width.toFloat(), src.height.toFloat()), r, r,
+            Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = android.graphics.BitmapShader(src, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP) },
+        )
         return out
     }
 

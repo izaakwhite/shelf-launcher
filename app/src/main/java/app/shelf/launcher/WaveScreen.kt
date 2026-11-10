@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +47,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -216,11 +218,14 @@ fun WaveScreen(
     ) {
         val W = maxWidth; val H = maxHeight
         val wPx = with(density) { W.toPx() }
-        val hue = monthHue()
+        val hue by produceState(monthHue(), motion) {
+            if (!motion) return@produceState
+            while (true) { delay(250); value = (value + 0.5f) % 360f }
+        }
 
         // ---- background: month-tinted gradient ----
         Box(
-            Modifier.fillMaxSize().background(
+            Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.background(
                 Brush.linearGradient(
                     listOf(hsl(hue, 0.55f, 0.36f), hsl(hue, 0.60f, 0.20f), hsl(hue, 0.65f, 0.07f)),
                     start = Offset(0f, 0f), end = Offset(wPx, with(density) { H.toPx() } * 1.2f),
@@ -249,11 +254,12 @@ fun WaveScreen(
                     .width(68.dp)
                     .graphicsLayer {
                         translationX = (ci - catAnim.value) * catPitchPx
+                        compositingStrategy = CompositingStrategy.ModulateAlpha
                         alpha = a; scaleX = s; scaleY = s
                     },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Canvas(Modifier.size(36.dp)) { drawCategoryIcon(c.icon) }
+                Canvas(Modifier.size(36.dp).graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) { drawCategoryIcon(c.icon) }
                 Text(
                     c.title, style = Type.small.copy(color = Color.White), maxLines = 1,
                     modifier = Modifier.padding(top = 6.dp).graphicsLayer { alpha = if (focusedCat) 1f else 0f },
@@ -267,7 +273,7 @@ fun WaveScreen(
             val pitchPx = with(density) { 64.dp.toPx() }
             val clearPx = with(density) { 22.dp.toPx() }      // extra room around the selected item
             val curvePx = with(density) { 90.dp.toPx() }
-            val anchorY = H * 0.40f
+            val anchorY = H * 0.50f
             val iconPx = with(density) { 72.dp.toPx() }.roundToInt()
             c.items.forEachIndexed { i, item ->
                 val isSel = id == current?.id && i == sel
@@ -282,10 +288,12 @@ fun WaveScreen(
                             translationX = (1f - kotlin.math.cos(rel * 0.4f)) * curvePx
                             rotationX = (-rel * 11f).coerceIn(-45f, 45f)
                             cameraDistance = 14f * this.density
+                            // Cache the row as a texture: tilting live text in 3D is very slow on this GPU.
+                            compositingStrategy = CompositingStrategy.Offscreen
                             alpha = when {
                                 ar < 0.5f -> 1f
-                                rel < -1.1f -> ((rel + 1.7f) / 0.6f).coerceIn(0f, 0.6f) // only one item fits above; keep clear of the bar
-                                rel > 3.2f -> (0.75f * (4.4f - rel) / 1.2f).coerceIn(0f, 0.75f)
+                                rel < -2.1f -> ((rel + 2.7f) / 0.6f).coerceIn(0f, 0.6f) // two items fit above; keep clear of the bar
+                                rel > 2.2f -> (0.75f * (3.4f - rel) / 1.2f).coerceIn(0f, 0.75f)
                                 else -> (0.95f - 0.18f * ar).coerceIn(0.2f, 0.85f)
                             }
                         },
@@ -319,17 +327,30 @@ fun WaveScreen(
                         item.label,
                         style = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = if (isSel) 24.sp else 19.sp, color = Color.White),
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 8.dp).width(W * 0.36f),
+                        modifier = Modifier.padding(start = 8.dp).widthIn(max = W * 0.36f),
                     )
                 }
             }
         }
 
         // ---- info panel on the right ----
-        Box(Modifier.align(Alignment.TopEnd).padding(top = H * 0.22f, end = W * 0.058f).width(W * 0.34f)) {
-            Crossfade(selected, animationSpec = tween(260), label = "info") { item ->
-                if (item != null) WaveInfo(item, editing = controller.editKey == item.key, panelW = W * 0.34f)
-            }
+        Box(Modifier.align(Alignment.TopEnd).padding(top = H * 0.22f, end = W * 0.058f).width(W * 0.34f).graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
+            WaveInfoPanel(selected, controller, W * 0.34f, motion)
+        }
+    }
+}
+
+/** Debounced, fade-in info panel in its own recomposition scope. */
+@Composable
+private fun WaveInfoPanel(selected: GridItem?, controller: HomeController, panelW: androidx.compose.ui.unit.Dp, motion: Boolean) {
+    var shown by remember { mutableStateOf(selected) }
+    LaunchedEffect(selected?.key) { delay(140); shown = selected }
+    val item = shown ?: return
+    androidx.compose.runtime.key(item.key) {
+        val fade = remember { Animatable(if (motion) 0f else 1f) }
+        LaunchedEffect(Unit) { fade.animateTo(1f, tween(200)) }
+        Box(Modifier.graphicsLayer { alpha = fade.value }) {
+            WaveInfo(item, editing = controller.editKey == item.key, panelW = panelW)
         }
     }
 }
@@ -378,7 +399,6 @@ private fun WaveInfo(item: GridItem, editing: Boolean, panelW: androidx.compose.
             Modifier.size(imgW, imgH).graphicsLayer {
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(if (wide) 14.dp else imgW * ImageLoader.ICON_CORNER_FRACTION)
                 clip = true
-                shadowElevation = 18.dp.toPx()
             },
         ) {
             if (img != null) Image(img, null, filterQuality = FilterQuality.Low, modifier = Modifier.fillMaxSize())
@@ -404,8 +424,9 @@ private fun WaveLayer(motion: Boolean, screenWpx: Int, modifier: Modifier) {
     val ribbons by produceState(WaveArtCache.a?.let { it to WaveArtCache.b!! }) {
         if (value == null) {
             value = withContext(Dispatchers.Default) {
-                val a = WaveArt.render(3840, 420, period = 1920, amp = 70f, lines = 16, phase = 0f, surface = true).asImageBitmap()
-                val b = WaveArt.render(3840, 420, period = 1280, amp = 46f, lines = 9, phase = 1.3f, surface = false).asImageBitmap()
+                // Tight heights: every transparent pixel blitted still costs fill rate on this GPU.
+                val a = WaveArt.render(3840, 250, period = 1920, amp = 62f, lines = 16, phase = 0f, surface = true).asImageBitmap()
+                val b = WaveArt.render(3840, 150, period = 1280, amp = 40f, lines = 9, phase = 1.3f, surface = false).asImageBitmap()
                 WaveArtCache.a = a; WaveArtCache.b = b
                 a to b
             }
@@ -419,15 +440,15 @@ private fun WaveLayer(motion: Boolean, screenWpx: Int, modifier: Modifier) {
     Box(
         modifier
             .fillMaxWidth()
-            .height(with(density) { 420.toDp() })
+            .height(with(density) { 300.toDp() })
             .drawBehind {
                 val p = t?.value ?: 0.25f
                 val sway = sin(p * 2 * PI.toFloat() * 6) * 10f
                 val sa = ((p * 1920 * 3) % 1920).toInt()
                 val sb = (1280 - ((p * 1280 * 5) % 1280)).toInt() % 1280
                 val w = screenWpx.coerceAtMost(3840 - 1920)
-                drawImage(r.first, srcOffset = IntOffset(sa, 0), srcSize = IntSize(w, 420), dstOffset = IntOffset(0, sway.toInt()), dstSize = IntSize(w, 420), filterQuality = FilterQuality.Low)
-                drawImage(r.second, srcOffset = IntOffset(sb, 0), srcSize = IntSize(w, 420), dstOffset = IntOffset(0, (40 - sway).toInt()), dstSize = IntSize(w, 420), filterQuality = FilterQuality.Low, alpha = 0.8f)
+                drawImage(r.first, srcOffset = IntOffset(sa, 0), srcSize = IntSize(w, 250), dstOffset = IntOffset(0, 20 + sway.toInt()), dstSize = IntSize(w, 250), filterQuality = FilterQuality.Low)
+                drawImage(r.second, srcOffset = IntOffset(sb, 0), srcSize = IntSize(w, 150), dstOffset = IntOffset(0, (90 - sway).toInt()), dstSize = IntSize(w, 150), filterQuality = FilterQuality.Low, alpha = 0.8f)
             },
     )
 }
@@ -439,7 +460,7 @@ private fun WaveClock(modifier: Modifier) {
         while (true) {
             val d = Date()
             val time = DateFormat.format(if (DateFormat.is24HourFormat(ctx)) "H:mm" else "h:mm a", d)
-            value = "${DateFormat.format("M/d", d)}   $time"
+            value = "${DateFormat.format("MM/dd/yyyy", d)}   $time"
             delay(60_000L - System.currentTimeMillis() % 60_000L + 50)
         }
     }

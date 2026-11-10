@@ -31,7 +31,7 @@ object WaveArt {
             val top = Path(); val bottom = ArrayList<Pair<Float, Float>>()
             var x = 0f
             top.moveTo(0f, y(0f, 0f))
-            while (x <= w) { top.lineTo(x, y(x, 0f)); bottom += x to y(x, lines.toFloat()) + 30f; x += step }
+            while (x <= w) { top.lineTo(x, y(x, 0f)); bottom += x to (y(x, lines.toFloat()) + 30f).coerceAtMost(h.toFloat()); x += step }
             for (i in bottom.indices.reversed()) top.lineTo(bottom[i].first, bottom[i].second)
             top.close()
             c.drawPath(top, Paint(Paint.ANTI_ALIAS_FLAG).apply {

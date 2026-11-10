@@ -43,5 +43,27 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <!-- Entries in the TV's app menu (e.g. from Projectivy) that open Shelf straight into a theme. -->
+        <activity-alias android:name=".ThemeAero" android:targetActivity=".HomeActivity" android:exported="true"
+            android:label="Shelf Aero" android:banner="@drawable/banner_aero" android:icon="@drawable/banner_aero">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".ThemeWave" android:targetActivity=".HomeActivity" android:exported="true"
+            android:label="Shelf Wave" android:banner="@drawable/banner_wave" android:icon="@drawable/banner_wave">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".ThemeGrid" android:targetActivity=".HomeActivity" android:exported="true"
+            android:label="Shelf Grid" android:banner="@drawable/banner_grid" android:icon="@drawable/banner_grid">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
     </application>
 </manifest>

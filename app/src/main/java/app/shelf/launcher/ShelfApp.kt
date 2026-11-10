@@ -13,11 +13,13 @@ class ShelfApp : Application() {
     val images by lazy { ImageLoader(this) }
     val inputs by lazy { InputRepository(this) }
     val backdrop by lazy { BackdropRepository(this) }
+    val sounds by lazy { SoundFx(this) }
     val session = Session()
 
     override fun onCreate() {
         super.onCreate()
         apps.start()
+        sounds // start loading samples now so the first key press isn't silent
     }
 
     override fun onTrimMemory(level: Int) {

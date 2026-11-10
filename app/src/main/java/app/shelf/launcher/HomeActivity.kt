@@ -23,16 +23,50 @@ import kotlinx.coroutines.launch
 class HomeActivity : ComponentActivity() {
     private val app get() = application as ShelfApp
     private var windowFocused = false
+    /** Mirrors the current settings / controller for the key-sound hook below. */
+    var settingsNow: Settings? = null
+    var controllerNow: HomeController? = null
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        val s = settingsNow
+        if (s?.sounds == true && event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            val c = controllerNow
+            when (event.keyCode) {
+                android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN -> app.sounds.tick()
+                android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT ->
+                    if (s.style == STYLE_WAVE && c?.editKey == null) app.sounds.slide() else app.sounds.tick()
+                android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER -> app.sounds.ok()
+                android.view.KeyEvent.KEYCODE_BACK ->
+                    if (c != null && (c.editKey != null || c.sheetFor != null || c.overlay != Overlay.NONE)) app.sounds.back()
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) { ShelfRoot(app, this) }
         }
+        // Compose paints every pixel; the window background would be a second full-screen fill per frame.
+        window.decorView.post { window.setBackgroundDrawable(null) }
+        applyThemeAlias(intent)
+    }
+
+    /** Launched from one of the "Shelf <theme>" menu entries: switch to that theme. */
+    private fun applyThemeAlias(intent: Intent?) {
+        val style = when (intent?.component?.className?.substringAfterLast('.')) {
+            "ThemeAero" -> STYLE_AERO
+            "ThemeWave" -> STYLE_WAVE
+            "ThemeGrid" -> STYLE_GRID
+            else -> return
+        }
+        lifecycleScope.launch { app.prefs.updateSettings { s -> if (style == STYLE_AERO && s.carousel) s else s.copy(style = style) } }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        applyThemeAlias(intent)
         // Home pressed while we're already in front → jump back to the top of the grid.
         // (When returning from another app the intent is "brought to front" and we just restore focus.)
         val alreadyOnHome = windowFocused &&
@@ -99,6 +133,8 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
     }
 
     BackHandler(enabled = true) { controller.back() }
+    activity.settingsNow = s
+    activity.controllerNow = controller
 
     val carouselApps = remember(arranged) { (arranged.dock + arranged.main).map { GridItem.App(it) } }
     val pills = remember(inputs, s.showInputs) {

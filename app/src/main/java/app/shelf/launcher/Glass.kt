@@ -19,6 +19,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -55,6 +57,9 @@ fun Modifier.glass(
     val screenWpx = with(density) { config.screenWidthDp.dp.toPx() }
     this
         .onGloballyPositioned { pos.value = it.positionInRoot() }
+        // Rasterise the panel once into a cached texture: the rounded clip + blur sample + gradients
+        // are far too slow to redo every frame on this GPU, but compositing a texture is cheap.
+        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         .drawWithCache {
             val r = CornerRadius(corner.toPx())
             val path = Path().apply { addRoundRect(RoundRect(0f, 0f, size.width, size.height, r)) }

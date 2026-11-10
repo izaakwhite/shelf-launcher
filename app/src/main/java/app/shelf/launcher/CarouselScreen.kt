@@ -38,6 +38,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.KeyEventType
@@ -49,6 +50,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -104,13 +108,15 @@ fun CarouselScreen(
         val centerPx = trackWpx / 2f
         val edgeFadePx = with(density) { 70.dp.toPx() }
 
-        // The carousel keeps its position while focus is down in the pills row.
-        val focusedIdx = indexOf[controller.focusedKey] ?: indexOf[session.lastCarouselKey] ?: 0
-        val target = centerPx - (xOf(focusedIdx) + iconPx / 2f)
-        val scroll = remember { Animatable(target) }
-        LaunchedEffect(target, motion) {
-            if (motion) scroll.animateTo(target, spring(dampingRatio = 0.86f, stiffness = 320f))
-            else scroll.animateTo(target, tween(140))
+        // The carousel keeps its position while focus is down in the pills row. Observed via
+        // snapshotFlow so a key press doesn't recompose the whole screen.
+        fun targetFor(k: String?) = centerPx - (xOf(indexOf[k] ?: indexOf[session.lastCarouselKey] ?: 0) + iconPx / 2f)
+        val scroll = remember { Animatable(targetFor(session.lastFocusedKey)) }
+        LaunchedEffect(apps, motion, centerPx) {
+            snapshotFlow { targetFor(controller.focusedKey) }.collectLatest { t ->
+                if (motion) scroll.animateTo(t, spring(dampingRatio = 0.86f, stiffness = 320f))
+                else scroll.animateTo(t, tween(140))
+            }
         }
 
         // ---- focus restore / Home press / edit re-focus / vanished tile ----
@@ -139,20 +145,29 @@ fun CarouselScreen(
             if (controller.overlay == Overlay.NONE) { withFrameNanos { }; focus(session.lastFocusedKey ?: firstKey) }
         }
 
-        Background(backdrop)
-        if (settings.showClock) GlassClock(Modifier.align(Alignment.TopCenter).padding(top = m.safeTop))
+        // Everything static (backdrop + glass panels + clock) is cached as ONE texture, so a frame
+        // composites a single full-screen layer instead of re-blending each panel.
+        Box(Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
+            Background(backdrop)
+            if (settings.showClock) GlassClock(Modifier.align(Alignment.TopCenter).padding(top = m.safeTop))
+            Box(Modifier.align(Alignment.TopCenter).padding(top = m.heroTop).size(m.heroW, m.heroH).glass(30.dp))
+            Box(
+                Modifier
+                    .padding(top = m.trackTop, start = trackInset, end = trackInset)
+                    .fillMaxWidth()
+                    .height(m.trackH)
+                    .glass(44.dp, tint = Color.White.copy(alpha = 0.07f)),
+            )
+        }
 
         // ---- hero ("top shelf") card ----
         Box(
             Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = m.heroTop)
-                .size(m.heroW, m.heroH)
-                .glass(30.dp),
+                .size(m.heroW, m.heroH),
         ) {
-            Crossfade(itemsByKey[controller.focusedKey], animationSpec = tween(320), label = "hero") { item ->
-                if (item != null) HeroContent(item, m, controller.editKey != null)
-            }
+            HeroCard(controller, itemsByKey, m, motion)
         }
 
         // ---- glass shelf + carousel ----
@@ -164,7 +179,6 @@ fun CarouselScreen(
                 .padding(top = m.trackTop, start = trackInset, end = trackInset)
                 .fillMaxWidth()
                 .height(m.trackH)
-                .glass(44.dp, tint = Color.White.copy(alpha = 0.07f))
                 .graphicsLayer { shape = RoundedCornerShape(44.dp); clip = true },
         ) {
         Row(
@@ -184,6 +198,7 @@ fun CarouselScreen(
                             val s = 1f - 0.05f * min(d, 4f)
                             scaleX = s; scaleY = s
                             val edge = ((min(cx, trackWpx - cx) - iconPx / 2f) / edgeFadePx).coerceIn(0f, 1f)
+                            compositingStrategy = CompositingStrategy.ModulateAlpha
                             alpha = min((1.3f - 0.15f * d).coerceIn(0.3f, 1f), edge)
                         },
                     ) {
@@ -200,6 +215,7 @@ fun CarouselScreen(
                             focusScale = m.focusScale,
                             corner = m.icon * ImageLoader.ICON_CORNER_FRACTION,
                             dimAlpha = 0.10f,
+                            bakedCorners = true,
                             onFocused = {
                                 controller.focusedKey = item.key
                                 session.lastFocusedKey = item.key
@@ -269,6 +285,25 @@ private fun shortLabel(k: SystemKind) = when (k) {
     SystemKind.SHELF_SETTINGS -> "Shelf"
 }
 
+/** Own recomposition scope: only this card recomposes when focus moves. */
+@Composable
+private fun HeroCard(controller: HomeController, itemsByKey: Map<String, GridItem>, m: CarouselMetrics, motion: Boolean) {
+    // Update the hero a beat after focus settles: keeps the key-press frame light and
+    // avoids flicker when scrolling quickly.
+    var heroKey by remember { mutableStateOf(controller.focusedKey) }
+    LaunchedEffect(Unit) {
+        snapshotFlow { controller.focusedKey }.collectLatest { delay(120); heroKey = it }
+    }
+    val heroItem = itemsByKey[heroKey] ?: return
+    key(heroItem.key) {
+        val fade = remember { Animatable(if (motion) 0f else 1f) }
+        LaunchedEffect(Unit) { fade.animateTo(1f, tween(220)) }
+        Box(Modifier.graphicsLayer { alpha = fade.value; compositingStrategy = CompositingStrategy.ModulateAlpha }) {
+            HeroContent(heroItem, m, controller.editKey != null)
+        }
+    }
+}
+
 @Composable
 private fun HeroContent(item: GridItem, m: CarouselMetrics, editing: Boolean) {
     val app = LocalContext.current.applicationContext as ShelfApp
@@ -290,7 +325,7 @@ private fun HeroContent(item: GridItem, m: CarouselMetrics, editing: Boolean) {
                 .graphicsLayer {
                     shape = RoundedCornerShape(if (wide) 16.dp else imgH * ImageLoader.ICON_CORNER_FRACTION)
                     clip = true
-                    shadowElevation = 14.dp.toPx()
+                    shadowElevation = 8.dp.toPx()
                 },
         ) {
             if (img != null) Image(img, null, filterQuality = FilterQuality.Low, modifier = Modifier.fillMaxSize())

@@ -106,6 +106,7 @@ fun SettingsPanel(
             }
             Row("Clock", onOff(settings.showClock)) { onChange { it.copy(showClock = !it.showClock) } }
             Row("Inputs row", onOff(settings.showInputs)) { onChange { it.copy(showInputs = !it.showInputs) } }
+            Row("Sounds", onOff(settings.sounds)) { onChange { it.copy(sounds = !it.sounds) } }
             Row("Reduce motion", onOff(settings.reduceMotion)) { onChange { it.copy(reduceMotion = !it.reduceMotion) } }
             Row("Hidden apps", "$hiddenCount", onClick = onHidden)
             Row("Android settings", "›", onClick = onAndroidSettings)
