@@ -91,6 +91,9 @@ fun ShelfTile(
     onMenu: () -> Unit,
     onEditMove: (Dir) -> Boolean,
     modifier: Modifier = Modifier,
+    focusScale: Float = FOCUS_SCALE,
+    corner: Dp = TileCorner,
+    dimAlpha: Float = 0.30f,
 ) {
     var focused by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -99,7 +102,7 @@ fun ShelfTile(
     val press = remember { PressState() }
 
     val scale by animateFloatAsState(
-        if (focused) FOCUS_SCALE else 1f,
+        if (focused) focusScale else 1f,
         spring(dampingRatio = 0.6f, stiffness = 420f), label = "scale",
     )
     val lift by animateFloatAsState(if (focused) 1f else 0f, tween(200), label = "lift")
@@ -126,7 +129,7 @@ fun ShelfTile(
         }
     }
 
-    val shape = RoundedCornerShape(TileCorner)
+    val shape = RoundedCornerShape(corner)
     Column(modifier.width(width), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
@@ -218,7 +221,7 @@ fun ShelfTile(
                 .drawWithContent {
                     drawContent()
                     val dim = 1f - lift
-                    if (dim > 0.01f) drawRect(Color.Black.copy(alpha = 0.30f * dim))
+                    if (dim > 0.01f && dimAlpha > 0f) drawRect(Color.Black.copy(alpha = dimAlpha * dim))
                     val p = shine.value
                     if (p > 0.001f && p < 0.999f) {
                         val w = size.width
@@ -237,7 +240,7 @@ fun ShelfTile(
                     if (editing) {
                         drawRoundRect(
                             Color.White.copy(alpha = 0.9f),
-                            cornerRadius = CornerRadius(TileCorner.toPx()),
+                            cornerRadius = CornerRadius(corner.toPx()),
                             style = Stroke(width = 3.dp.toPx()),
                         )
                     }
@@ -251,7 +254,7 @@ fun ShelfTile(
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .padding(top = height * ((FOCUS_SCALE - 1f) / 2f) + 8.dp)
+                    .padding(top = height * ((focusScale - 1f) / 2f) + 8.dp)
                     .graphicsLayer { alpha = lift },
             )
         }

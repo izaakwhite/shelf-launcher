@@ -1,6 +1,7 @@
 package app.shelf.launcher
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,7 +47,8 @@ fun EditSheet(
         Column(
             Modifier
                 .width(380.dp)
-                .background(Color(0xF01C2230), RoundedCornerShape(20.dp))
+                .background(Color(0xF0102A44), RoundedCornerShape(24.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(24.dp))
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -84,13 +86,20 @@ fun SettingsPanel(
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
                 .width(460.dp)
-                .background(Color(0xF2141923))
+                .glass(0.dp, tint = Color(0xC8061A2E))
                 .padding(horizontal = 32.dp, vertical = 36.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text("Shelf", style = Type.panelTitle, modifier = Modifier.padding(bottom = 16.dp))
-            Row("Grid columns", "${settings.columns}", Modifier.focusRequester(first)) {
-                onChange { it.copy(columns = if (it.columns == 5) 6 else 5) }
+            Row("Layout", if (settings.carousel) "Carousel" else "Grid", Modifier.focusRequester(first)) {
+                onChange { it.copy(carousel = !it.carousel) }
+            }
+            if (settings.carousel) {
+                Row("Icon size", if (settings.columns == 5) "Large" else "Compact") {
+                    onChange { it.copy(columns = if (it.columns == 5) 6 else 5) }
+                }
+            } else {
+                Row("Grid columns", "${settings.columns}") { onChange { it.copy(columns = if (it.columns == 5) 6 else 5) } }
             }
             Row("Clock", onOff(settings.showClock)) { onChange { it.copy(showClock = !it.showClock) } }
             Row("Inputs row", onOff(settings.showInputs)) { onChange { it.copy(showInputs = !it.showInputs) } }
@@ -129,7 +138,7 @@ fun HiddenAppsScreen(hidden: List<AppEntry>, m: Metrics, motion: Boolean, onUnhi
         withFrameNanos { }
         hidden.firstOrNull()?.let { runCatching { requesters[it.key]?.requestFocus() } }
     }
-    Box(Modifier.fillMaxSize().background(Color(0xF00A0D14))) {
+    Box(Modifier.fillMaxSize().glass(0.dp, tint = Color(0xD8061626), sheen = 0f)) {
         Column(Modifier.padding(horizontal = m.marginH, vertical = m.safeTop)) {
             Text("Hidden Apps", style = Type.panelTitle)
             Text(

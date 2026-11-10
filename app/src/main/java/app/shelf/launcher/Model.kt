@@ -49,6 +49,7 @@ class Session {
     var lastFocusedKey: String? = null
     var lastRow = 0
     var lastCol = 0
+    var lastCarouselKey: String? = null
     /** Bumped when Home is pressed while already on the home screen. */
     val homeTick = mutableIntStateOf(0)
     /** Bumped on every onResume. */

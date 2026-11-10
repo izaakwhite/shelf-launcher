@@ -12,7 +12,7 @@ class ShelfApp : Application() {
     val apps by lazy { AppRepository(this, scope) }
     val images by lazy { ImageLoader(this) }
     val inputs by lazy { InputRepository(this) }
-    val wallpaper by lazy { WallpaperRepository(this) }
+    val backdrop by lazy { BackdropRepository(this) }
     val session = Session()
 
     override fun onCreate() {

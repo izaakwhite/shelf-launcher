@@ -31,6 +31,7 @@ object Type {
     val header = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Palette.textDim)
     val panelTitle = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Light, fontSize = 30.sp, color = Palette.text)
     val body = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 17.sp)
+    val pill = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 15.sp)
     val small = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 13.sp)
 }
 

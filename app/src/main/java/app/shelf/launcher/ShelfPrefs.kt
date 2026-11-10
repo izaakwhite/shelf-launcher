@@ -19,6 +19,7 @@ data class Settings(
     val showClock: Boolean = true,
     val showInputs: Boolean = true,
     val reduceMotion: Boolean = false,
+    val carousel: Boolean = true,
 )
 
 data class Layout(
@@ -34,6 +35,7 @@ class ShelfPrefs(private val ctx: Context) {
         val clock = booleanPreferencesKey("show_clock")
         val inputs = booleanPreferencesKey("show_inputs")
         val reduceMotion = booleanPreferencesKey("reduce_motion")
+        val carousel = booleanPreferencesKey("carousel")
         val favorites = stringPreferencesKey("favorites")
         val order = stringPreferencesKey("order")
         val hidden = stringSetPreferencesKey("hidden")
@@ -46,6 +48,7 @@ class ShelfPrefs(private val ctx: Context) {
             showClock = p[K.clock] ?: true,
             showInputs = p[K.inputs] ?: true,
             reduceMotion = p[K.reduceMotion] ?: false,
+            carousel = p[K.carousel] ?: true,
         )
     }.distinctUntilChanged()
 
@@ -71,12 +74,14 @@ class ShelfPrefs(private val ctx: Context) {
         ctx.store.edit { p ->
             val cur = Settings(
                 p[K.columns] ?: 5, p[K.clock] ?: true, p[K.inputs] ?: true, p[K.reduceMotion] ?: false,
+                p[K.carousel] ?: true,
             )
             val n = f(cur)
             p[K.columns] = n.columns
             p[K.clock] = n.showClock
             p[K.inputs] = n.showInputs
             p[K.reduceMotion] = n.reduceMotion
+            p[K.carousel] = n.carousel
         }
     }
 

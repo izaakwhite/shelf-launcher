@@ -66,7 +66,7 @@ class Metrics(val screenW: Dp, val screenH: Dp, columns: Int) {
     val tileH = tileW * 9f / 16f
     val labelSpace = 40.dp
     val shelfH = screenH * 0.45f
-    val heroH = shelfH - safeTop - 52.dp
+    val heroH = shelfH - safeTop - 74.dp
     val heroW = heroH * 16f / 9f
 }
 
@@ -84,7 +84,7 @@ fun HomeScreen(
     rows: List<GridRow>,
     arranged: Arranged,
     settings: Settings,
-    wallpaper: Wallpaper?,
+    backdrop: Backdrop?,
     session: Session,
 ) {
     val app = LocalContext.current.applicationContext as ShelfApp
@@ -156,17 +156,7 @@ fun HomeScreen(
             if (controller.overlay == Overlay.NONE) { withFrameNanos { }; focus(session.lastFocusedKey ?: firstKey) }
         }
 
-        Background(wallpaper)
-        if (wallpaper != null) {
-            // Pre-blurred (fade baked in) copy of the wallpaper behind the Top Shelf.
-            Image(
-                wallpaper.blurred, null, contentScale = ContentScale.Crop, filterQuality = FilterQuality.Low,
-                modifier = Modifier.fillMaxSize().graphicsLayer {
-                    alpha = (1f - scroll.value / (shelfPx * 0.55f)).coerceIn(0f, 1f)
-                },
-            )
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.15f)))
-        }
+        Background(backdrop)
 
         // ---- Top Shelf ----
         val focusedItem = itemsByKey[controller.focusedKey]
@@ -176,7 +166,7 @@ fun HomeScreen(
                 .height(m.shelfH + 70.dp)
                 .graphicsLayer { alpha = (1f - scroll.value / (shelfPx * 0.55f)).coerceIn(0f, 1f) },
         ) {
-            TopShelf(focusedItem, m, wallpaper, controller.editKey != null)
+            TopShelf(focusedItem, m, controller.editKey != null)
         }
 
         // ---- Grid ----
@@ -275,41 +265,13 @@ fun HomeScreen(
                 .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent))),
         )
         if (settings.showClock) {
-            Clock(Modifier.align(Alignment.TopEnd).padding(top = m.safeTop, end = m.marginH))
+            GlassClock(Modifier.align(Alignment.TopCenter).padding(top = m.safeTop))
         }
     }
 }
 
 @Composable
-fun Background(wallpaper: Wallpaper?) {
-    if (wallpaper != null) {
-        Image(
-            wallpaper.sharp, null, contentScale = ContentScale.Crop,
-            filterQuality = FilterQuality.Low, modifier = Modifier.fillMaxSize(),
-        )
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)))
-    } else {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(Palette.bgTop, Palette.bgBottom)))
-                .drawBehind {
-                    drawCircle(
-                        Brush.radialGradient(
-                            listOf(Color(0x332E4A7A), Color.Transparent),
-                            center = Offset(size.width * 0.2f, size.height * 0.1f),
-                            radius = size.width * 0.6f,
-                        ),
-                        radius = size.width * 0.6f,
-                        center = Offset(size.width * 0.2f, size.height * 0.1f),
-                    )
-                },
-        )
-    }
-}
-
-@Composable
-private fun TopShelf(item: GridItem?, m: Metrics, wallpaper: Wallpaper?, editing: Boolean) {
+private fun TopShelf(item: GridItem?, m: Metrics, editing: Boolean) {
     val app = LocalContext.current.applicationContext as ShelfApp
     val density = LocalDensity.current
     val heroWpx = with(density) { m.heroW.toPx() }.roundToInt()
@@ -326,7 +288,7 @@ private fun TopShelf(item: GridItem?, m: Metrics, wallpaper: Wallpaper?, editing
                     )
                 }
                 Row(
-                    Modifier.padding(start = m.marginH, top = m.safeTop + 8.dp),
+                    Modifier.padding(start = m.marginH, top = m.safeTop + 30.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val hero = rememberImage(app.images.heroKey(it, heroWpx, heroHpx)) { app.images.hero(it, heroWpx, heroHpx) }

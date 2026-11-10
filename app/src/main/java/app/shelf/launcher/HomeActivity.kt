@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,7 +43,7 @@ class HomeActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         app.session.resumeTick.intValue++
-        lifecycleScope.launch { app.wallpaper.refresh() }
+        lifecycleScope.launch { app.backdrop.refresh() }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -57,7 +58,7 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
     val controller = remember { HomeController(app, activity, scope) }
     val apps by app.apps.apps.collectAsState()
     val settings by app.prefs.settings.collectAsState(initial = null)
-    val wallpaper by app.wallpaper.state.collectAsState()
+    val backdrop by app.backdrop.state.collectAsState()
     val inputs = remember { app.inputs.load() }
 
     LaunchedEffect(Unit) { app.prefs.layout.collect { controller.onStoredLayout(it) } }
@@ -70,7 +71,9 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
         return
     }
 
-    val arranged = remember(list, controller.layout, s.columns) { controller.arrange(list, s.columns) }
+    // In the carousel favourites are just the front of the line, so allow more of them.
+    val dockCap = if (s.carousel) 12 else s.columns
+    val arranged = remember(list, controller.layout, dockCap) { controller.arrange(list, dockCap) }
     val rows = remember(arranged, s.columns, s.showInputs, inputs, controller.layout.hidden.size) {
         buildList {
             if (arranged.dock.isNotEmpty()) add(GridRow("dock", RowKind.DOCK, null, arranged.dock.map { GridItem.App(it) }))
@@ -97,15 +100,29 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
 
     BackHandler(enabled = true) { controller.back() }
 
+    val carouselApps = remember(arranged) { (arranged.dock + arranged.main).map { GridItem.App(it) } }
+    val pills = remember(inputs, s.showInputs) {
+        (if (s.showInputs) inputs.map { GridItem.Input(it) } else emptyList()) + listOf(
+            GridItem.System(SystemKind.HIDDEN_APPS, "Hidden Apps"),
+            GridItem.System(SystemKind.ANDROID_SETTINGS, "Settings"),
+            GridItem.System(SystemKind.SHELF_SETTINGS, "Shelf"),
+        )
+    }
+
+    CompositionLocalProvider(LocalBackdrop provides backdrop) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        HomeScreen(controller, rows, arranged, s, wallpaper, app.session)
+        if (s.carousel) {
+            CarouselScreen(controller, carouselApps, arranged.dock.size, pills, arranged, s, backdrop, app.session)
+        } else {
+            HomeScreen(controller, rows, arranged, s, backdrop, app.session)
+        }
 
         val m = remember(maxWidth, maxHeight, s.columns) { Metrics(maxWidth, maxHeight, s.columns) }
         when (controller.overlay) {
             Overlay.SETTINGS -> SettingsPanel(
                 settings = s,
                 hiddenCount = controller.layout.hidden.count { k -> list.any { it.key == k } },
-                wallpaperPath = app.wallpaper.dir()?.path ?: "/sdcard/Android/data/${app.packageName}/files",
+                wallpaperPath = app.backdrop.dir()?.path ?: "/sdcard/Android/data/${app.packageName}/files",
                 onChange = { f -> scope.launch { app.prefs.updateSettings(f) } },
                 onHidden = { controller.overlay = Overlay.HIDDEN },
                 onAndroidSettings = { controller.open(GridItem.System(SystemKind.ANDROID_SETTINGS, "Settings")) },
@@ -124,11 +141,12 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
             EditSheet(
                 app = sheetApp,
                 isFavorite = arranged.dock.any { it.key == sheetApp.key },
-                onFavorite = { controller.toggleFavorite(sheetApp.key, arranged, s.columns) },
+                onFavorite = { controller.toggleFavorite(sheetApp.key, arranged, dockCap) },
                 onHide = { controller.hide(sheetApp.key) },
                 onInfo = { controller.drop(); controller.appInfo(sheetApp.packageName) },
                 onCancel = { controller.sheetFor = null },
             )
         }
+    }
     }
 }

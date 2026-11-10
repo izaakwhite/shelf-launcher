@@ -129,6 +129,41 @@ class HomeController(
         return true
     }
 
+    /** Carousel move: favourites are the front of one line; crossing the divider (un)favourites. */
+    fun moveLinear(dir: Dir, arranged: Arranged): Boolean {
+        val key = editKey ?: return false
+        val dock = arranged.dock.map { it.key }.toMutableList()
+        val main = arranged.main.map { it.key }.toMutableList()
+        when (dir) {
+            Dir.LEFT -> when {
+                key in main -> {
+                    val i = main.indexOf(key)
+                    if (i == 0) { main.removeAt(0); dock.add(key) } else { main.removeAt(i); main.add(i - 1, key) }
+                }
+                else -> {
+                    val i = dock.indexOf(key)
+                    if (i <= 0) return false
+                    dock.removeAt(i); dock.add(i - 1, key)
+                }
+            }
+            Dir.RIGHT -> when {
+                key in dock -> {
+                    val i = dock.indexOf(key)
+                    if (i == dock.lastIndex) { dock.removeAt(i); main.add(0, key) } else { dock.removeAt(i); dock.add(i + 1, key) }
+                }
+                else -> {
+                    val i = main.indexOf(key)
+                    if (i < 0 || i == main.lastIndex) return false
+                    main.removeAt(i); main.add(i + 1, key)
+                }
+            }
+            else -> return false
+        }
+        layout = layout.copy(favorites = dock, order = main)
+        editVersion++
+        return true
+    }
+
     fun toggleFavorite(key: String, arranged: Arranged, columns: Int) {
         val dock = arranged.dock.map { it.key }.toMutableList()
         val main = arranged.main.map { it.key }.toMutableList()

@@ -12,7 +12,9 @@ import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
+import android.util.DisplayMetrics
 import android.graphics.drawable.Drawable
 import android.text.TextPaint
 import android.text.TextUtils
@@ -54,6 +56,9 @@ class ImageLoader(private val ctx: Context) {
     fun washKey(item: GridItem) = "wash|${stamp(item)}"
     private fun stamp(item: GridItem) = if (item is GridItem.App) item.key + "@" + item.app.stamp else item.key
 
+    fun iconKey(item: GridItem, px: Int) = "icon|${stamp(item)}|$px"
+    suspend fun icon(item: GridItem.App, px: Int) = load(iconKey(item, px)) { renderIcon(item.app, px) }
+
     suspend fun tile(item: GridItem, w: Int, h: Int) = load(tileKey(item, w, h)) { render(item, w, h) }
     suspend fun hero(item: GridItem, w: Int, h: Int) = load(heroKey(item, w, h)) { render(item, w, h) }
 
@@ -75,6 +80,8 @@ class ImageLoader(private val ctx: Context) {
     }
 
     companion object {
+        const val ICON_CORNER_FRACTION = 0.23f
+
         /** Bakes a vertical fade-out (alpha 1 → 0 between [from] and [to], as fractions of height) into [b]. */
         fun fadeAlpha(b: Bitmap, from: Float, to: Float, dim: Float = 1f) {
             val w = b.width; val h = b.height
@@ -113,6 +120,62 @@ class ImageLoader(private val ctx: Context) {
             ?: runCatching { pm.getApplicationIcon(app.packageName) }.getOrNull()
             ?: pm.defaultActivityIcon
         return renderIconTile(icon, app.label, w, h)
+    }
+
+    /** The xxxhdpi variant of the app icon when available (TV density is only xhdpi = 96 px icons). */
+    private fun hiResIcon(app: AppEntry): Drawable {
+        val ai = activityInfo(app)
+        if (ai != null) {
+            runCatching {
+                val res = pm.getResourcesForApplication(ai.applicationInfo)
+                res.getDrawableForDensity(ai.iconResource, DisplayMetrics.DENSITY_XXXHIGH, null)
+            }.getOrNull()?.let { return it }
+        }
+        return runCatching { ai?.loadIcon(pm) }.getOrNull()
+            ?: runCatching { pm.getApplicationIcon(app.packageName) }.getOrNull()
+            ?: pm.defaultActivityIcon
+    }
+
+    /** Square, glossy icon tile: adaptive icons full-bleed, legacy icons on a colour sampled from the icon. */
+    private fun renderIcon(app: AppEntry, px: Int): Bitmap {
+        val d = hiResIcon(app)
+        val out = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+        val c = Canvas(out)
+        if (d is AdaptiveIconDrawable) {
+            val inset = px / 4 // adaptive layers are 108dp with the central 72dp visible
+            d.background?.let { it.setBounds(-inset, -inset, px + inset, px + inset); it.draw(c) }
+            d.foreground?.let { it.setBounds(-inset, -inset, px + inset, px + inset); it.draw(c) }
+        } else {
+            val iconSize = (px * 0.68f).toInt()
+            val iconBmp = drawableToBitmap(d, iconSize)
+            val palette = Palette.from(iconBmp).maximumColorCount(16).generate()
+            val sampled = (palette.vibrantSwatch ?: palette.dominantSwatch ?: palette.mutedSwatch)?.rgb ?: 0xFF3A6FA0.toInt()
+            val hsl = FloatArray(3).also { ColorUtils.colorToHSL(sampled, it) }
+            hsl[1] = hsl[1].coerceAtMost(0.7f)
+            hsl[2] = hsl[2].coerceIn(0.28f, 0.46f)
+            val top = ColorUtils.HSLToColor(floatArrayOf(hsl[0], hsl[1], (hsl[2] + 0.10f).coerceAtMost(0.6f)))
+            val bottom = ColorUtils.HSLToColor(floatArrayOf(hsl[0], hsl[1], hsl[2] - 0.08f))
+            c.drawRect(0f, 0f, px.toFloat(), px.toFloat(), Paint().apply {
+                shader = LinearGradient(0f, 0f, 0f, px.toFloat(), top, bottom, Shader.TileMode.CLAMP)
+            })
+            val o = (px - iconSize) / 2f
+            c.drawBitmap(iconBmp, o, o, Paint(Paint.FILTER_BITMAP_FLAG))
+        }
+        gloss(c, px, px)
+        return out
+    }
+
+    /** Aero-style gloss: a big soft ellipse of light over the top half plus a thin bright rim. */
+    private fun gloss(c: Canvas, w: Int, h: Int) {
+        c.drawOval(RectF(-w * 0.35f, -h * 0.78f, w * 1.35f, h * 0.46f), Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(0f, 0f, 0f, h * 0.46f, 0x48FFFFFF, 0x06FFFFFF, Shader.TileMode.CLAMP)
+        })
+        val sw = w * 0.014f
+        val rr = w * ICON_CORNER_FRACTION
+        c.drawRoundRect(RectF(sw / 2, sw / 2, w - sw / 2, h - sw / 2), rr, rr, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE; strokeWidth = sw
+            shader = LinearGradient(0f, 0f, 0f, h.toFloat(), 0xA0FFFFFF.toInt(), 0x1AFFFFFF, Shader.TileMode.CLAMP)
+        })
     }
 
     /** Draw a drawable filling w×h, center-cropped, with bitmap filtering. */
