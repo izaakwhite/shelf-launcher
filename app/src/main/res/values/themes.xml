@@ -6,6 +6,9 @@
         <item name="android:windowAnimationStyle">@null</item>
         <item name="android:windowShowWallpaper">false</item>
         <item name="android:colorBackgroundCacheHint">@color/shelf_bg</item>
+        <!-- Default shadow alphas are nearly invisible on a dark UI; make the focus "lift" readable. -->
+        <item name="android:ambientShadowAlpha">0.3</item>
+        <item name="android:spotShadowAlpha">0.6</item>
     </style>
     <color name="shelf_bg">#FF0A0E16</color>
 </resources>

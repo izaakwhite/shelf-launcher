@@ -126,8 +126,12 @@ class ImageLoader(private val ctx: Context) {
         val dh = (ih * scale).toInt()
         val left = (w - dw) / 2
         val top = (h - dh) / 2
-        val bmp = (d as? BitmapDrawable)?.bitmap
-        if (bmp != null) {
+        // Non-bitmap banners (layer lists, <bitmap gravity=…>, insets) don't always scale with their
+        // bounds, so render them at their intrinsic size first and scale that bitmap.
+        val bmp = (d as? BitmapDrawable)?.bitmap ?: Bitmap.createBitmap(iw, ih, Bitmap.Config.ARGB_8888).also {
+            d.setBounds(0, 0, iw, ih); d.draw(Canvas(it))
+        }
+        if (true) {
             c.drawBitmap(bmp, null, Rect(left, top, left + dw, top + dh), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
         } else {
             d.setBounds(left, top, left + dw, top + dh)
