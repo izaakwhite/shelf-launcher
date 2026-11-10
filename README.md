@@ -59,6 +59,9 @@ secret), `SHELF_KEYSTORE_PASSWORD`, `SHELF_KEY_ALIAS`, `SHELF_KEY_PASSWORD`. Unt
 
 Tests: `./gradlew :app:testDebugUnitTest` (unit) and `./e2e/run.sh` (drives a real TV; add `--perf` for frame stats).
 
+**Commit hook:** run `./scripts/setup-hooks.sh` once. It then runs Android lint and the unit tests before each commit
+(only when code/build files are staged; about a minute). Skip with `git commit --no-verify`.
+
 ## License
 
 Apache-2.0 (`LICENSE`). Third-party components are listed in `THIRD_PARTY_NOTICES.md`; the Inter typeface is

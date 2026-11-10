@@ -1,5 +1,6 @@
 package app.shelf.launcher
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -35,6 +36,9 @@ class HomeActivity : ComponentActivity() {
     var settingsNow: Settings? = null
     var controllerNow: HomeController? = null
 
+    // Both are false positives: we only *observe* keys to play a click (Back isn't intercepted; TVs have no
+    // back gesture), and calling super.dispatchKeyEvent on an androidx ComponentActivity is flagged by mistake.
+    @SuppressLint("GestureBackNavigation", "RestrictedApi")
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         val s = settingsNow
         if (s?.sounds == true && event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
