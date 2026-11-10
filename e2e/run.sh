@@ -26,15 +26,20 @@ state() { A logcat -d -s ShelfState:I | grep -o "$1=[^ ]*" | tail -1 | cut -d= -
 wait_state() { # field expected timeout-seconds
   for _ in $(seq 1 "${3:-8}"); do [ "$(state "$1")" = "$2" ] && return 0; sleep 1; done; return 1; }
 
+FILES=/sdcard/Android/data/$PKG/files
+cleanup() { A shell rm -f "$FILES/no_music" >/dev/null 2>&1; }
+trap cleanup EXIT
+
 adb connect "$TV" >/dev/null 2>&1
 A get-state >/dev/null 2>&1 || { echo "TV $TV not reachable"; exit 2; }
 A shell pm list packages | grep -q "package:$PKG\$" || { echo "$PKG is not installed (run ./deploy.sh)"; exit 2; }
 case "$(fg)" in $PKG/*|com.spocky.projengmenu/*) ;; *) echo "Someone is using the TV ($(fg)). Not running."; exit 3 ;; esac
 
+A shell "mkdir -p $FILES && touch $FILES/no_music"    # keep Wave music off while testing (removed on exit)
 echo "Shelf e2e on $TV ($(A shell dumpsys package $PKG | grep -m1 versionName | tr -d ' '))"
 
 # Remember the user's style to restore afterwards.
-mark; key KEYCODE_HOME; sleep 2
+key KEYCODE_HOME; sleep 2
 ORIGINAL_STYLE=$(A shell am start -W -n $PKG/.HomeActivity >/dev/null 2>&1; sleep 2; state style)
 [ -n "$ORIGINAL_STYLE" ] || { A shell am force-stop $PKG; mark; key KEYCODE_HOME; sleep 4; ORIGINAL_STYLE=$(state style); }
 echo "  (current style: ${ORIGINAL_STYLE:-unknown})"
@@ -47,20 +52,21 @@ key KEYCODE_BACK; [[ "$(fg)" == $PKG/* ]] && ok "Back on the home screen does no
 
 echo "Theme shortcuts"
 for s in wave aero grid; do
-  alias=".Theme$(echo ${s:0:1} | tr a-z A-Z)${s:1}"
-  mark; A shell am start -n "$PKG/$alias" >/dev/null 2>&1
-  wait_state style "$s" 10 && ok "Opening \"Shelf ${s^}\" switches to $s" || bad "Shelf ${s^} shortcut" "style=$(state style)"
+  cap="$(echo "${s:0:1}" | tr a-z A-Z)${s:1}"      # portable (macOS bash 3.2 has no ${s^})
+  mark; A shell am start -n "$PKG/.Theme$cap" >/dev/null 2>&1
+  wait_state style "$s" 10 && ok "Opening \"Shelf $cap\" switches to $s" || bad "Shelf $cap shortcut" "style=$(state style)"
 done
 
 echo "Wave navigation"
-mark; A shell am start -n "$PKG/.ThemeWave" >/dev/null 2>&1; wait_state style wave 10; key KEYCODE_HOME; sleep 1
+mark; A shell am start -n "$PKG/.ThemeWave" >/dev/null 2>&1; wait_state style wave 10; key KEYCODE_HOME; sleep 2
 f0=$(state focus)
 [ -n "$f0" ] && [ "$f0" != "null" ] && ok "Something is focused after Home ($f0)" || bad "Initial focus" "focus=$f0"
 key KEYCODE_DPAD_DOWN; f1=$(state focus)
 [ -n "$f1" ] && [ "$f1" != "$f0" ] && ok "Down moves to the next item" || bad "Down moves selection" "$f0 -> $f1"
 key KEYCODE_DPAD_RIGHT; f2=$(state focus)
 [ -n "$f2" ] && [ "$f2" != "$f1" ] && ok "Right switches category" || bad "Right switches category" "$f1 -> $f2"
-key KEYCODE_HOME; [ "$(state focus)" = "$f0" ] && ok "Home returns to the first item" || bad "Home returns to start" "focus=$(state focus)"
+key KEYCODE_HOME; sleep 2
+[ "$(state focus)" = "$f0" ] && ok "Home returns to the first item" || bad "Home returns to start" "focus=$(state focus) expected $f0"
 
 echo "Edit mode"
 key --longpress KEYCODE_DPAD_CENTER

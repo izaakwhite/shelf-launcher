@@ -25,7 +25,7 @@ class WaveMusic(private val ctx: Context) {
     private var source: String? = null
     private var fadeToken = 0
 
-    private val target = 0.32f
+    private val target = 0.14f
 
     private fun userFile(): File? = ctx.getExternalFilesDir(null)?.listFiles()
         ?.firstOrNull { it.isFile && it.name.lowercase().matches(Regex("wave_music\\.(mp3|ogg|m4a|aac|wav|flac)")) }
@@ -48,7 +48,11 @@ class WaveMusic(private val ctx: Context) {
         }
     }
 
+    /** Test hook: `adb shell touch <files dir>/no_music` keeps music off (the e2e script uses it). */
+    private fun muted() = ctx.getExternalFilesDir(null)?.resolve("no_music")?.exists() == true
+
     fun start() {
+        if (muted()) return
         val file = userFile()
         val wanted = file?.let { "${it.path}:${it.lastModified()}" } ?: "builtin"
         if ((track != null || player != null) && source == wanted) return

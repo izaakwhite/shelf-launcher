@@ -21,7 +21,7 @@ data class Settings(
     val reduceMotion: Boolean = false,
     val style: String = STYLE_WAVE,
     val sounds: Boolean = true,
-    val music: Boolean = true,
+    val music: Boolean = false,
 ) {
     val carousel get() = style.startsWith(STYLE_AERO)
 }
@@ -62,7 +62,7 @@ class ShelfPrefs(private val ctx: Context) {
             reduceMotion = p[K.reduceMotion] ?: false,
             style = p[K.style] ?: STYLE_WAVE,
             sounds = p[K.sounds] ?: true,
-            music = p[K.music] ?: true,
+            music = p[K.music] ?: false,
         )
     }.distinctUntilChanged()
 
@@ -90,7 +90,7 @@ class ShelfPrefs(private val ctx: Context) {
                 p[K.columns] ?: 5, p[K.clock] ?: true, p[K.inputs] ?: true, p[K.reduceMotion] ?: false,
                 p[K.style] ?: STYLE_WAVE,
                 p[K.sounds] ?: true,
-                p[K.music] ?: true,
+                p[K.music] ?: false,
             )
             val n = f(cur)
             p[K.columns] = n.columns

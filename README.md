@@ -51,7 +51,8 @@ and [docs/design-origins.md](docs/design-origins.md).
 
 `.github/workflows/ci.yml` runs unit tests and builds on every PR and push. On `main` it also tags the built commit
 `v<VERSION>-b<build>` (VERSION comes from `.versions`), publishes a GitHub Release with the APK, and appends a
-`build | version | commit | date` line to `.versions`.
+`build | version | commit | date` line to `.versions` on a separate `versions` branch (`main` is protected: changes go
+through a pull request, and only the repo owner can bypass that).
 
 **Signing:** CI builds are signed with a throwaway debug key unless you add these repository secrets, and Android won't
 install an update signed with a different key over an older build: `SHELF_KEYSTORE_PATH` (a path you restore from a
@@ -118,7 +119,7 @@ Wave plays an original ambient loop by default. To use your own music instead:
 adb push my-music.mp3 /sdcard/Android/data/app.shelf.launcher/files/wave_music.mp3
 ```
 (`.ogg`, `.m4a`, `.wav`, `.flac` work too.) It only plays while Wave is on screen, never over another app's audio,
-and can be turned off in Shelf settings → Wave music.
+and is **off by default**; turn it on in Shelf settings → Wave music.
 
 ## Wallpaper (Aero and Grid styles)
 

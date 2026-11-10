@@ -177,6 +177,11 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
     LaunchedEffect(s.style, s.music) { activity.updateMusic() }
     // One log line per UI state change; the end-to-end tests (e2e/run.sh) read these from logcat.
     LaunchedEffect(s.style) { Log.i("ShelfState", "style=${s.style}") }
+    // Also log the state each time Shelf comes to the front, so e2e tests can read it even if nothing changed.
+    LaunchedEffect(resumeTick) {
+        delay(600)
+        Log.i("ShelfState", "focus=${controller.focusedKey} overlay=${controller.overlay} edit=${controller.editKey}")
+    }
     LaunchedEffect(Unit) {
         snapshotFlow { Triple(controller.focusedKey, controller.overlay, controller.editKey) }.collect { (f, o, e) ->
             Log.i("ShelfState", "focus=$f overlay=$o edit=$e")

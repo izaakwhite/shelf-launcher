@@ -29,7 +29,7 @@ jobs:
           path: app/build/outputs/apk/release/app-release.apk
 
   publish:
-    # Only for pushes to main: tag the built commit, publish a release, record it in .versions.
+    # Only for pushes to main: tag the built commit, publish a release, record it on the `versions` branch.
     needs: test-build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
@@ -48,8 +48,11 @@ jobs:
           mv app-release.apk "shelf-${TAG}.apk"
           git tag "$TAG" "$SHA" && git push origin "$TAG"
           gh release create "$TAG" "shelf-${TAG}.apk" --target "$SHA" --title "Shelf $TAG" --generate-notes
-          echo "${BUILD} | ${VERSION} | ${SHA} | $(date -u +%FT%TZ)" >> .versions
+          LINE="${BUILD} | ${VERSION} | ${SHA} | $(date -u +%FT%TZ)"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .versions && git commit -m "Record build ${TAG} [skip ci]"
-          git pull --rebase origin main && git push origin HEAD:main   # rebase: another build may have recorded first
+          # main is protected (PRs only), so the build log lives on its own branch.
+          git fetch origin versions 2>/dev/null && git checkout -q -B versions origin/versions || git checkout -q -B versions
+          echo "$LINE" >> .versions
+          git add .versions && git commit -q -m "Record build ${TAG}"
+          git push origin versions
