@@ -44,6 +44,12 @@
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- Also list Shelf itself in the TV's app menu, with its own icon and banner (the theme shortcuts below
+                 are separate entries). Shelf hides its own package from its grids, so this does not show up there. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
         </activity>
         <!-- Entries in the TV's app menu (e.g. from Projectivy) that open Shelf straight into a theme. -->
         <activity-alias android:name=".ThemeAero" android:targetActivity=".HomeActivity" android:exported="true"
