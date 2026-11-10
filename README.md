@@ -44,8 +44,8 @@ adb shell cmd package set-home-activity app.shelf.launcher/.HomeActivity   # mak
 ## Design origins
 
 The styles are inspired by familiar TV and console home screens, but every icon, animation, sound and line of code
-here is original. See [docs/design-origins.md](docs/design-origins.md) for what was borrowed (ideas only) and what
-wasn't.
+here is original. No designs, artwork, sounds or code were copied from any other product. See [LEGAL.md](LEGAL.md)
+and [docs/design-origins.md](docs/design-origins.md).
 
 ## License
 

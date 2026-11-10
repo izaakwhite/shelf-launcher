@@ -188,7 +188,7 @@ fun HiddenAppsScreen(hidden: List<AppEntry>, m: Metrics, motion: Boolean, onUnhi
 fun LicensesScreen() {
     val ctx = LocalContext.current
     val text = remember {
-        listOf("NOTICES.md", "Apache-2.0.txt", "Inter-OFL.txt").joinToString("\n\n────────\n\n") { f ->
+        listOf("LEGAL.md", "NOTICES.md", "Apache-2.0.txt", "Inter-OFL.txt").joinToString("\n\n────────\n\n") { f ->
             runCatching { ctx.assets.open("licenses/$f").bufferedReader().use { it.readText() } }.getOrDefault("")
         }
     }
@@ -214,7 +214,7 @@ fun LicensesScreen() {
                 .focusable()
                 .verticalScroll(scroll),
         ) {
-            Text("Open-source licenses", style = Type.panelTitle, modifier = Modifier.padding(bottom = 16.dp))
+            Text("Legal & open-source licenses", style = Type.panelTitle, modifier = Modifier.padding(bottom = 16.dp))
             Text(text, style = Type.small.copy(color = Palette.text, fontSize = 13.sp))
         }
     }
