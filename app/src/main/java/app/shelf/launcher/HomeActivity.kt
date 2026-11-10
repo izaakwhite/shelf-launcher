@@ -45,7 +45,7 @@ class HomeActivity : ComponentActivity() {
             val c = controllerNow
             when (event.keyCode) {
                 android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN -> app.sounds.tick()
-                android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> app.sounds.move()
+                android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> app.sounds.tick()
                 android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER -> app.sounds.ok()
                 android.view.KeyEvent.KEYCODE_BACK ->
                     if (c != null && (c.editKey != null || c.sheetFor != null || c.overlay != Overlay.NONE)) app.sounds.back()

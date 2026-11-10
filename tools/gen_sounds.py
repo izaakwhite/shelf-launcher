@@ -22,41 +22,6 @@ def click(dur, decay, tone_hz, tone_amp, noise_amp, lp, vol, seed):
     for i in range(fade): out[-1 - i] *= i / fade
     return out, sr
 
-def blip(dur, f0, f1, decay, vol, attack=0.003, harm=0.22, seed=0):
-    """A soft glassy drop: a sine that glides f0 -> f1 with a touch of second harmonic and a gentle attack."""
-    sr = 44100; n = int(sr * dur); out = []; ph = 0.0
-    for i in range(n):
-        t = i / sr
-        f = f0 + (f1 - f0) * min(1.0, t / dur)
-        ph += 2 * math.pi * f / sr
-        env = min(1.0, t / attack) * math.exp(-t * decay)
-        out.append(vol * env * (math.sin(ph) + harm * math.sin(2 * ph)))
-    fade = 96
-    for i in range(fade): out[-1 - i] *= i / fade
-    return out, sr
-
-def chime(notes, dur, decay, vol):
-    """Two or three soft sine notes (freq Hz, start s) that ring out and overlap, like a tiny glass chime."""
-    sr = 44100; n = int(sr * dur); out = [0.0] * n
-    for f, st in notes:
-        for i in range(int(st * sr), n):
-            t = (i / sr) - st
-            env = min(1.0, t / 0.004) * math.exp(-t * decay)
-            out[i] += vol * env * (math.sin(2 * math.pi * f * t) + 0.18 * math.sin(4 * math.pi * f * t))
-    fade = 128
-    for i in range(fade): out[-1 - i] *= i / fade
-    return out, sr
-
-def swish(dur, vol, seed=5):
-    """A soft sideways 'whoosh': low-passed noise that swells and fades, with a faint tone underneath."""
-    sr = 44100; rnd = random.Random(seed); n = int(sr * dur); out = []; y = 0.0
-    for i in range(n):
-        t = i / sr; x = i / n
-        env = math.sin(math.pi * x) ** 2
-        y += (0.05 + 0.22 * x) * ((rnd.random() * 2 - 1) - y)
-        out.append(vol * env * (0.9 * y + 0.18 * math.sin(2 * math.pi * (520 + 380 * x) * t)))
-    return out, sr
-
 def ambient(seconds=48, sr=22050):
     """Warm, bright, slow ambient loop (original). Every note is added with wrap-around, so the
     end of the file flows straight into the start: the loop has no seam."""
@@ -103,8 +68,7 @@ if __name__ == '__main__':
     for old in ('sfx_slide.wav',):
         p = os.path.join(RAW, old)
         if os.path.exists(p): os.remove(p)
-    write('sfx_tick.wav', *blip(0.07, 2300, 1750, 70, 0.34))                    # scroll up/down: a soft glassy drop
-    write('sfx_move.wav', *swish(0.16, 0.5))                                    # left/right: a soft whoosh
-    write('sfx_ok.wav',   *chime([(1318.5, 0.0), (1760.0, 0.07)], 0.42, 11, 0.30))   # select: rising two-note chime
-    write('sfx_back.wav', *chime([(1568.0, 0.0), (1174.7, 0.06)], 0.34, 14, 0.28))   # back: falling two-note chime
-    if os.environ.get('WITH_AMBIENT'): write('wave_ambient.wav', *ambient())   # unchanged; slow to render
+    write('sfx_tick.wav', *click(0.018, 420, 1700, 0.25, 0.9, 0.35, 0.55, 1))   # scroll
+    write('sfx_ok.wav',   *click(0.040, 160, 900, 0.45, 0.8, 0.25, 0.75, 2))    # select
+    write('sfx_back.wav', *click(0.030, 220, 600, 0.40, 0.7, 0.20, 0.6, 3))     # back
+    write('wave_ambient.wav', *ambient())
