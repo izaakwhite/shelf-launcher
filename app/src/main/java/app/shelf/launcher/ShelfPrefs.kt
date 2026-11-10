@@ -19,7 +19,7 @@ data class Settings(
     val showClock: Boolean = true,
     val showInputs: Boolean = true,
     val reduceMotion: Boolean = false,
-    val style: String = STYLE_AERO,
+    val style: String = STYLE_WAVE,
     val sounds: Boolean = true,
     val music: Boolean = true,
 ) {
@@ -60,7 +60,7 @@ class ShelfPrefs(private val ctx: Context) {
             showClock = p[K.clock] ?: true,
             showInputs = p[K.inputs] ?: true,
             reduceMotion = p[K.reduceMotion] ?: false,
-            style = p[K.style] ?: STYLE_AERO,
+            style = p[K.style] ?: STYLE_WAVE,
             sounds = p[K.sounds] ?: true,
             music = p[K.music] ?: true,
         )
@@ -88,7 +88,7 @@ class ShelfPrefs(private val ctx: Context) {
         ctx.store.edit { p ->
             val cur = Settings(
                 p[K.columns] ?: 5, p[K.clock] ?: true, p[K.inputs] ?: true, p[K.reduceMotion] ?: false,
-                p[K.style] ?: STYLE_AERO,
+                p[K.style] ?: STYLE_WAVE,
                 p[K.sounds] ?: true,
                 p[K.music] ?: true,
             )
