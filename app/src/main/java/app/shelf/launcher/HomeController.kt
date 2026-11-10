@@ -130,8 +130,13 @@ class HomeController(
     }
 
     /** Carousel move: favourites are the front of one line; crossing the divider (un)favourites. */
-    fun moveLinear(dir: Dir, arranged: Arranged): Boolean {
+    fun moveLinear(dir: Dir, arranged: Arranged, crossDivider: Boolean = true): Boolean {
         val key = editKey ?: return false
+        if (!crossDivider) {
+            val list = if (arranged.dock.any { it.key == key }) arranged.dock else arranged.main
+            val i = list.indexOfFirst { it.key == key }
+            if ((dir == Dir.LEFT && i == 0) || (dir == Dir.RIGHT && i == list.lastIndex)) return false
+        }
         val dock = arranged.dock.map { it.key }.toMutableList()
         val main = arranged.main.map { it.key }.toMutableList()
         when (dir) {

@@ -99,7 +99,10 @@ fun CarouselScreen(
         val hasDivider = dockCount in 1 until apps.size
         val dividerExtraPx = if (hasDivider) with(density) { (m.dividerW + m.gap).toPx() } else 0f
         fun xOf(i: Int) = i * pitchPx + if (hasDivider && i >= dockCount) dividerExtraPx else 0f
-        val centerPx = with(density) { maxWidth.toPx() } / 2f
+        val trackInset = m.marginH * 0.5f
+        val trackWpx = with(density) { (maxWidth - trackInset * 2).toPx() }
+        val centerPx = trackWpx / 2f
+        val edgeFadePx = with(density) { 70.dp.toPx() }
 
         // The carousel keeps its position while focus is down in the pills row.
         val focusedIdx = indexOf[controller.focusedKey] ?: indexOf[session.lastCarouselKey] ?: 0
@@ -153,18 +156,20 @@ fun CarouselScreen(
         }
 
         // ---- glass shelf + carousel ----
-        Box(
-            Modifier
-                .padding(top = m.trackTop, start = m.marginH * 0.5f, end = m.marginH * 0.5f)
-                .fillMaxWidth()
-                .height(m.trackH)
-                .glass(44.dp, tint = Color.White.copy(alpha = 0.07f)),
-        )
         val iconPxScaled = with(density) { (m.icon * m.focusScale).toPx() }.roundToInt()
         val canFocus = controller.overlay == Overlay.NONE && controller.sheetFor == null
+        // Icons live inside the glass track and are clipped to it, fading out before the rounded ends.
+        Box(
+            Modifier
+                .padding(top = m.trackTop, start = trackInset, end = trackInset)
+                .fillMaxWidth()
+                .height(m.trackH)
+                .glass(44.dp, tint = Color.White.copy(alpha = 0.07f))
+                .graphicsLayer { shape = RoundedCornerShape(44.dp); clip = true },
+        ) {
         Row(
             Modifier
-                .padding(top = m.iconTop)
+                .padding(top = m.iconTop - m.trackTop)
                 .wrapContentWidth(Alignment.Start, unbounded = true)
                 .graphicsLayer { translationX = scroll.value },
             horizontalArrangement = Arrangement.spacedBy(m.gap),
@@ -174,10 +179,12 @@ fun CarouselScreen(
                     Box(
                         Modifier.graphicsLayer {
                             // Depth: icons shrink and fade with distance from the centre.
-                            val d = abs(xOf(i) + iconPx / 2f + scroll.value - centerPx) / pitchPx
-                            val s = 1f - 0.07f * min(d, 4f)
+                            val cx = xOf(i) + iconPx / 2f + scroll.value
+                            val d = abs(cx - centerPx) / pitchPx
+                            val s = 1f - 0.05f * min(d, 4f)
                             scaleX = s; scaleY = s
-                            alpha = (1.25f - 0.2f * d).coerceIn(0.12f, 1f)
+                            val edge = ((min(cx, trackWpx - cx) - iconPx / 2f) / edgeFadePx).coerceIn(0f, 1f)
+                            alpha = min((1.3f - 0.15f * d).coerceIn(0.3f, 1f), edge)
                         },
                     ) {
                         val img = rememberImage(app.images.iconKey(item, iconPxScaled)) { app.images.icon(item, iconPxScaled) }
@@ -224,10 +231,12 @@ fun CarouselScreen(
             }
         }
 
+        }
+
         // ---- inputs + system pills ----
         Row(
             Modifier.align(Alignment.TopCenter).padding(top = m.pillsTop),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             pills.forEachIndexed { i, item ->
@@ -235,10 +244,15 @@ fun CarouselScreen(
                     Box(Modifier.size(2.dp, 22.dp).background(Color.White.copy(alpha = 0.3f)))
                 }
                 key(item.key) {
+                    val iconPx = with(density) { 20.dp.toPx() }.roundToInt()
                     GlassPill(
-                        label = (item as? GridItem.System)?.let { shortLabel(it.kind) } ?: item.label,
+                        // System entries are round icon buttons; their names show in the hero card.
+                        label = if (item is GridItem.System) null else item.label,
+                        icon = rememberImage(app.images.symbolKey(item, iconPx)) { app.images.symbol(item, iconPx) },
                         requester = req(item.key),
                         up = { session.lastCarouselKey?.let { requesters[it] } ?: firstKey?.let { requesters[it] } },
+                        left = pills.getOrNull(i - 1)?.let { req(it.key) },
+                        right = pills.getOrNull(i + 1)?.let { req(it.key) },
                         canFocus = canFocus,
                         onFocused = { controller.focusedKey = item.key; session.lastFocusedKey = item.key },
                         onClick = { controller.open(item) },
@@ -298,9 +312,12 @@ private fun HeroContent(item: GridItem, m: CarouselMetrics, editing: Boolean) {
 
 @Composable
 fun GlassPill(
-    label: String,
+    label: String?,
+    icon: androidx.compose.ui.graphics.ImageBitmap?,
     requester: FocusRequester,
     up: () -> FocusRequester?,
+    left: FocusRequester?,
+    right: FocusRequester?,
     canFocus: Boolean,
     onFocused: () -> Unit,
     onClick: () -> Unit,
@@ -311,13 +328,26 @@ fun GlassPill(
     Box(
         Modifier
             .focusRequester(requester)
-            .focusProperties {
-                this.canFocus = canFocus
-                up()?.let { this.up = it }
-            }
+            .focusProperties { this.canFocus = canFocus }
             .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
             .onPreviewKeyEvent { ev ->
                 val c = ev.nativeKeyEvent.keyCode
+                // Explicit wiring: geometric focus search can otherwise jump up into the carousel.
+                val target = when (c) {
+                    AKeyEvent.KEYCODE_DPAD_LEFT -> left
+                    AKeyEvent.KEYCODE_DPAD_RIGHT -> right
+                    AKeyEvent.KEYCODE_DPAD_UP -> up()
+                    else -> null
+                }
+                if (c == AKeyEvent.KEYCODE_DPAD_LEFT || c == AKeyEvent.KEYCODE_DPAD_RIGHT ||
+                    c == AKeyEvent.KEYCODE_DPAD_UP || c == AKeyEvent.KEYCODE_DPAD_DOWN
+                ) {
+                    if (ev.type == KeyEventType.KeyDown && target != null) {
+                        if (c == AKeyEvent.KEYCODE_DPAD_UP) Nav.mark(Dir.UP)
+                        runCatching { target.requestFocus() }
+                    }
+                    return@onPreviewKeyEvent true
+                }
                 if (c == AKeyEvent.KEYCODE_DPAD_CENTER || c == AKeyEvent.KEYCODE_ENTER || c == AKeyEvent.KEYCODE_NUMPAD_ENTER) {
                     if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) down = true
                     if (ev.type == KeyEventType.KeyUp && down) { down = false; onClick() }
@@ -327,8 +357,17 @@ fun GlassPill(
             .focusable()
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .glass(20.dp, tint = if (focused) Color.White.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.10f))
-            .padding(horizontal = 18.dp, vertical = 7.dp),
+            .padding(start = 12.dp, end = if (label != null) 16.dp else 12.dp, top = 9.dp, bottom = 9.dp),
     ) {
-        Text(label, style = Type.pill, color = if (focused) Color(0xFF0A2238) else Palette.text)
+        val fg = if (focused) Color(0xFF0A2238) else Palette.text
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Image(
+                    icon, null, colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(fg),
+                    modifier = Modifier.padding(end = if (label != null) 7.dp else 0.dp).size(20.dp),
+                )
+            }
+            if (label != null) Text(label, style = Type.pill, color = fg, maxLines = 1)
+        }
     }
 }

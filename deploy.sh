@@ -67,7 +67,13 @@ if [ "$HOME_AFTER" != "$HOME_BEFORE" ] && [[ "$HOME_BEFORE" == */* ]] && [[ "$HO
   A shell cmd package set-home-activity "$HOME_BEFORE" >/dev/null
 fi
 
+FG_BEFORE=$(A shell dumpsys activity activities | grep -m1 mResumedActivity | grep -o '[a-z.]*/[A-Za-z.]*' || true)
+if [ "$LAUNCH" = 1 ] && [ -n "$FG_BEFORE" ] && [[ "$FG_BEFORE" != app.shelf.launcher/* ]] && [[ "$FG_BEFORE" != *Resolver* ]] && [[ "$FG_BEFORE" != com.spocky.projengmenu/* ]]; then
+  echo "Not launching: $FG_BEFORE is in the foreground (someone may be using the TV)."
+  LAUNCH=0
+fi
 if [ "$LAUNCH" = 1 ]; then
-  A shell am start -n "$ACT" >/dev/null
+  # If Shelf is the default home, go "home" so we reuse the real home task instead of a second copy.
+  if [ "$(current_home)" = "$PKG/.HomeActivity" ]; then A shell input keyevent KEYCODE_HOME; else A shell am start -n "$ACT" >/dev/null; fi
   echo "Launched $ACT"
 fi

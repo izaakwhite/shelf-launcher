@@ -59,6 +59,20 @@ class ImageLoader(private val ctx: Context) {
     fun iconKey(item: GridItem, px: Int) = "icon|${stamp(item)}|$px"
     suspend fun icon(item: GridItem.App, px: Int) = load(iconKey(item, px)) { renderIcon(item.app, px) }
 
+    fun symbolKey(item: GridItem, px: Int) = "sym|${item.key}|$px"
+    suspend fun symbol(item: GridItem, px: Int) = load(symbolKey(item, px)) {
+        val sym = when (item) {
+            is GridItem.Input -> if (item.input.passthrough) Symbol.INPUT else Symbol.ANTENNA
+            is GridItem.System -> when (item.kind) {
+                SystemKind.HIDDEN_APPS -> Symbol.HIDDEN
+                SystemKind.ANDROID_SETTINGS -> Symbol.SLIDERS
+                SystemKind.SHELF_SETTINGS -> Symbol.GRID
+            }
+            is GridItem.App -> Symbol.GRID
+        }
+        renderSymbol(null, sym, px, px, 0, plain = true)
+    }
+
     suspend fun tile(item: GridItem, w: Int, h: Int) = load(tileKey(item, w, h)) { render(item, w, h) }
     suspend fun hero(item: GridItem, w: Int, h: Int) = load(heroKey(item, w, h)) { render(item, w, h) }
 
@@ -249,19 +263,21 @@ class ImageLoader(private val ctx: Context) {
     private enum class Symbol { INPUT, ANTENNA, HIDDEN, SLIDERS, GRID }
 
     /** Tiles for inputs and system entries: a simple line icon drawn in code (no icon assets needed). */
-    private fun renderSymbol(label: String, symbol: Symbol, w: Int, h: Int, base: Int): Bitmap {
+    private fun renderSymbol(label: String?, symbol: Symbol, w: Int, h: Int, base: Int, plain: Boolean = false): Bitmap {
         val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = Canvas(out)
-        val top = ColorUtils.blendARGB(base, Color.WHITE, 0.06f)
-        val bottom = ColorUtils.blendARGB(base, Color.BLACK, 0.18f)
-        c.drawRect(0f, 0f, w.toFloat(), h.toFloat(), Paint().apply {
-            shader = LinearGradient(0f, 0f, 0f, h.toFloat(), top, bottom, Shader.TileMode.CLAMP)
-        })
-        val s = h * 0.34f            // icon box size
+        if (!plain) {
+            val top = ColorUtils.blendARGB(base, Color.WHITE, 0.06f)
+            val bottom = ColorUtils.blendARGB(base, Color.BLACK, 0.18f)
+            c.drawRect(0f, 0f, w.toFloat(), h.toFloat(), Paint().apply {
+                shader = LinearGradient(0f, 0f, 0f, h.toFloat(), top, bottom, Shader.TileMode.CLAMP)
+            })
+        }
+        val s = if (plain) h * 0.62f else h * 0.34f            // icon box size
         val cx = w / 2f
-        val cy = h * 0.38f
+        val cy = if (plain) h * 0.5f else h * 0.38f
         val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeWidth = max(2f, h * 0.022f); color = Color.WHITE
+            style = Paint.Style.STROKE; strokeWidth = max(2f, h * (if (plain) 0.035f else 0.022f)); color = Color.WHITE
             strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
         }
         val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
@@ -306,7 +322,7 @@ class ImageLoader(private val ctx: Context) {
                 }
             }
         }
-        drawLabel(c, label, w, h)
+        if (label != null) drawLabel(c, label, w, h)
         return out
     }
 }

@@ -19,8 +19,16 @@ data class Settings(
     val showClock: Boolean = true,
     val showInputs: Boolean = true,
     val reduceMotion: Boolean = false,
-    val carousel: Boolean = true,
-)
+    val style: String = STYLE_AERO,
+) {
+    val carousel get() = style.startsWith(STYLE_AERO)
+}
+
+const val STYLE_AERO = "aero"
+const val STYLE_AERO_DUSK = "aero_dusk"
+const val STYLE_AERO_NIGHT = "aero_night"
+const val STYLE_WAVE = "wave"
+const val STYLE_GRID = "grid"
 
 data class Layout(
     val favorites: List<String> = emptyList(),
@@ -35,7 +43,7 @@ class ShelfPrefs(private val ctx: Context) {
         val clock = booleanPreferencesKey("show_clock")
         val inputs = booleanPreferencesKey("show_inputs")
         val reduceMotion = booleanPreferencesKey("reduce_motion")
-        val carousel = booleanPreferencesKey("carousel")
+        val style = stringPreferencesKey("style")
         val favorites = stringPreferencesKey("favorites")
         val order = stringPreferencesKey("order")
         val hidden = stringSetPreferencesKey("hidden")
@@ -48,7 +56,7 @@ class ShelfPrefs(private val ctx: Context) {
             showClock = p[K.clock] ?: true,
             showInputs = p[K.inputs] ?: true,
             reduceMotion = p[K.reduceMotion] ?: false,
-            carousel = p[K.carousel] ?: true,
+            style = p[K.style] ?: STYLE_AERO,
         )
     }.distinctUntilChanged()
 
@@ -74,14 +82,14 @@ class ShelfPrefs(private val ctx: Context) {
         ctx.store.edit { p ->
             val cur = Settings(
                 p[K.columns] ?: 5, p[K.clock] ?: true, p[K.inputs] ?: true, p[K.reduceMotion] ?: false,
-                p[K.carousel] ?: true,
+                p[K.style] ?: STYLE_AERO,
             )
             val n = f(cur)
             p[K.columns] = n.columns
             p[K.clock] = n.showClock
             p[K.inputs] = n.showInputs
             p[K.reduceMotion] = n.reduceMotion
-            p[K.carousel] = n.carousel
+            p[K.style] = n.style
         }
     }
 

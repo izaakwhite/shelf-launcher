@@ -102,11 +102,7 @@ fun Background(backdrop: Backdrop?) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    *AeroArt.STOPS.zip(AeroArt.BASE.toList()).map { (s, c) -> s to Color(c) }.toTypedArray(),
-                ),
-            ),
+            .background(Brush.verticalGradient(listOf(Color(0xFF0B1E33), Color(0xFF06111D)))),
     )
     Crossfade(backdrop, animationSpec = tween(500), label = "bg") { b ->
         if (b != null) {

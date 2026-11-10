@@ -72,7 +72,7 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
     }
 
     // In the carousel favourites are just the front of the line, so allow more of them.
-    val dockCap = if (s.carousel) 12 else s.columns
+    val dockCap = if (s.style == STYLE_GRID) s.columns else 12
     val arranged = remember(list, controller.layout, dockCap) { controller.arrange(list, dockCap) }
     val rows = remember(arranged, s.columns, s.showInputs, inputs, controller.layout.hidden.size) {
         buildList {
@@ -109,9 +109,34 @@ private fun ShelfRoot(app: ShelfApp, activity: HomeActivity) {
         )
     }
 
-    CompositionLocalProvider(LocalBackdrop provides backdrop) {
+    LaunchedEffect(s.style) {
+        app.backdrop.palette = AeroArt.palette(s.style)
+        app.backdrop.refresh()
+    }
+    val waveCats = remember(arranged, inputs, s.showInputs) {
+        buildList {
+            if (arranged.dock.isNotEmpty()) add(WaveCategory("fav", "Favorites", CatIcon.STAR, arranged.dock.map { GridItem.App(it) }))
+            add(WaveCategory("apps", "Apps", CatIcon.APPS, arranged.main.map { GridItem.App(it) }))
+            if (s.showInputs && inputs.isNotEmpty()) add(WaveCategory("tv", "TV", CatIcon.TV, inputs.map { GridItem.Input(it) }))
+            add(
+                WaveCategory(
+                    "settings", "Settings", CatIcon.SETTINGS,
+                    listOf(
+                        GridItem.System(SystemKind.SHELF_SETTINGS, "Shelf settings"),
+                        GridItem.System(SystemKind.ANDROID_SETTINGS, "Android settings"),
+                        GridItem.System(SystemKind.HIDDEN_APPS, "Hidden apps"),
+                    ),
+                ),
+            )
+        }
+    }
+
+    // The Wave style has its own backdrop; glass panels there just use their tint.
+    CompositionLocalProvider(LocalBackdrop provides if (s.style == STYLE_WAVE) null else backdrop) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        if (s.carousel) {
+        if (s.style == STYLE_WAVE) {
+            WaveScreen(controller, waveCats, arranged, s, app.session)
+        } else if (s.carousel) {
             CarouselScreen(controller, carouselApps, arranged.dock.size, pills, arranged, s, backdrop, app.session)
         } else {
             HomeScreen(controller, rows, arranged, s, backdrop, app.session)

@@ -23,12 +23,13 @@ class BackdropRepository(private val ctx: Context) {
     private val _state = MutableStateFlow<Backdrop?>(null)
     val state: StateFlow<Backdrop?> = _state
     private var stamp: String? = null
+    @Volatile var palette: AeroPalette = AeroArt.AQUA
 
     fun dir(): File? = ctx.getExternalFilesDir(null)
 
     suspend fun refresh() = withContext(Dispatchers.IO) {
         val file = dir()?.listFiles()?.firstOrNull { it.isFile && it.name.lowercase().matches(Regex("wallpaper\\.(jpe?g|png|webp)")) }
-        val newStamp = file?.let { "user_${it.length()}_${it.lastModified()}" } ?: AeroArt.VERSION
+        val newStamp = file?.let { "user_${it.length()}_${it.lastModified()}" } ?: (AeroArt.VERSION + "_" + palette.name)
         if (newStamp == stamp) return@withContext
         runCatching {
             val sharp = if (file != null) decodeUser(file) else aero()
@@ -44,9 +45,10 @@ class BackdropRepository(private val ctx: Context) {
     }
 
     private fun aero(): Bitmap {
-        val f = File(ctx.cacheDir, AeroArt.VERSION + ".jpg")
+        val pal = palette
+        val f = File(ctx.cacheDir, AeroArt.VERSION + "_" + pal.name + ".jpg")
         BitmapFactory.decodeFile(f.path)?.let { return it }
-        return AeroArt.render().also { b -> f.outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, 94, it) } }
+        return AeroArt.render(pal).also { b -> f.outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, 94, it) } }
     }
 
     /** Decode near screen size and center-crop to 16:9 so glass sampling lines up with the screen. */

@@ -15,27 +15,46 @@ import kotlin.random.Random
  * Procedural "modern Frutiger Aero" backdrop: deep sky → aqua gradient, a soft sun bloom, light rays,
  * aurora swooshes and glossy bubbles. Drawn once in code (no bundled artwork) and cached on disk.
  */
-object AeroArt {
-    const val VERSION = "aero_v1"
+class AeroPalette(
+    val name: String,
+    val base: IntArray,
+    val sun: Int, val glowA: Int, val glowB: Int,
+    val rib1From: Int, val rib1To: Int, val rib2From: Int, val rib2To: Int,
+)
 
-    // Base colours, shared with the Compose placeholder gradient shown while the art loads.
-    val BASE = intArrayOf(0xFF06284F.toInt(), 0xFF0D5A92.toInt(), 0xFF1690A8.toInt(), 0xFF0B5552.toInt())
+object AeroArt {
+    const val VERSION = "aero_v2"
     val STOPS = floatArrayOf(0f, 0.45f, 0.75f, 1f)
 
-    fun render(w: Int = 1920, h: Int = 1080): Bitmap {
+    val AQUA = AeroPalette(
+        "aqua", intArrayOf(0xFF06284F.toInt(), 0xFF0D5A92.toInt(), 0xFF1690A8.toInt(), 0xFF0B5552.toInt()),
+        0x70CFF4FF, 0x6080E07A, 0x4834D3C8, 0x80A8F05A.toInt(), 0x5550E3E0, 0x6650E3E0, 0x40B8F7FF,
+    )
+    val DUSK = AeroPalette(
+        "dusk", intArrayOf(0xFF140C34.toInt(), 0xFF43246E.toInt(), 0xFF9A4A7C.toInt(), 0xFF5A2440.toInt()),
+        0x70FFD6A8, 0x60FF8FB0, 0x48FFB070, 0x80FFB38A.toInt(), 0x55FF7FB5, 0x66C99BFF, 0x40FFE0F0,
+    )
+    val NIGHT = AeroPalette(
+        "night", intArrayOf(0xFF02050C.toInt(), 0xFF081A33.toInt(), 0xFF0E2C4D.toInt(), 0xFF040C18.toInt()),
+        0x403A6FB0, 0x30307A9A, 0x302A5AA8, 0x5550D0E0, 0x337A6BFF, 0x403AA0FF, 0x26B8C8FF,
+    )
+
+    fun palette(style: String) = when (style) { STYLE_AERO_DUSK -> DUSK; STYLE_AERO_NIGHT -> NIGHT; else -> AQUA }
+
+    fun render(pal: AeroPalette, w: Int = 1920, h: Int = 1080): Bitmap {
         // 1) Soft layer at quarter resolution, blurred, then upscaled (cheap, and naturally smooth).
         val sw = w / 4; val sh = h / 4
         val soft = Bitmap.createBitmap(sw, sh, Bitmap.Config.ARGB_8888)
         Canvas(soft).apply {
             drawRect(0f, 0f, sw.toFloat(), sh.toFloat(), Paint().apply {
-                shader = LinearGradient(0f, 0f, 0f, sh.toFloat(), BASE, STOPS, Shader.TileMode.CLAMP)
+                shader = LinearGradient(0f, 0f, 0f, sh.toFloat(), pal.base, STOPS, Shader.TileMode.CLAMP)
             })
-            bloom(this, sw * 0.76f, sh * 0.02f, sw * 0.62f, 0x70CFF4FF)
-            bloom(this, sw * 0.18f, sh * 1.02f, sw * 0.62f, 0x6080E07A)  // green "meadow" glow
-            bloom(this, sw * 0.90f, sh * 1.05f, sw * 0.45f, 0x4834D3C8)
+            bloom(this, sw * 0.76f, sh * 0.02f, sw * 0.62f, pal.sun)
+            bloom(this, sw * 0.18f, sh * 1.02f, sw * 0.62f, pal.glowA)  // "meadow" glow
+            bloom(this, sw * 0.90f, sh * 1.05f, sw * 0.45f, pal.glowB)
             rays(this, sw, sh)
-            ribbon(this, sw, sh, 0.80f, 0.55f, 1.00f, 0.60f, sh * 0.16f, 0x80A8F05A.toInt(), 0x5550E3E0)
-            ribbon(this, sw, sh, 0.92f, 0.70f, 0.82f, 0.74f, sh * 0.10f, 0x6650E3E0, 0x40B8F7FF)
+            ribbon(this, sw, sh, 0.80f, 0.55f, 1.00f, 0.60f, sh * 0.16f, pal.rib1From, pal.rib1To)
+            ribbon(this, sw, sh, 0.92f, 0.70f, 0.82f, 0.74f, sh * 0.10f, pal.rib2From, pal.rib2To)
         }
         val softBlur = Blur.blur(soft, radius = 6)
 

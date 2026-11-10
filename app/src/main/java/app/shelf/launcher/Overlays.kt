@@ -91,14 +91,17 @@ fun SettingsPanel(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text("Shelf", style = Type.panelTitle, modifier = Modifier.padding(bottom = 16.dp))
-            Row("Layout", if (settings.carousel) "Carousel" else "Grid", Modifier.focusRequester(first)) {
-                onChange { it.copy(carousel = !it.carousel) }
+            Row("Style", styleName(settings.style), Modifier.focusRequester(first)) {
+                onChange {
+                    val order = listOf(STYLE_AERO, STYLE_AERO_DUSK, STYLE_AERO_NIGHT, STYLE_WAVE, STYLE_GRID)
+                    it.copy(style = order[(order.indexOf(it.style) + 1) % order.size])
+                }
             }
             if (settings.carousel) {
                 Row("Icon size", if (settings.columns == 5) "Large" else "Compact") {
                     onChange { it.copy(columns = if (it.columns == 5) 6 else 5) }
                 }
-            } else {
+            } else if (settings.style == STYLE_GRID) {
                 Row("Grid columns", "${settings.columns}") { onChange { it.copy(columns = if (it.columns == 5) 6 else 5) } }
             }
             Row("Clock", onOff(settings.showClock)) { onChange { it.copy(showClock = !it.showClock) } }
@@ -117,6 +120,11 @@ fun SettingsPanel(
 
 private fun onOff(b: Boolean) = if (b) "On" else "Off"
 
+private fun styleName(s: String) = when (s) {
+    STYLE_AERO_DUSK -> "Aero Dusk"; STYLE_AERO_NIGHT -> "Aero Night"
+    STYLE_WAVE -> "Wave"; STYLE_GRID -> "Classic grid"; else -> "Aero Aqua"
+}
+
 @Composable
 private fun Row(title: String, value: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     ListItem(
@@ -124,7 +132,7 @@ private fun Row(title: String, value: String, modifier: Modifier = Modifier, onC
         onClick = onClick,
         modifier = modifier,
         headlineContent = { Text(title, style = Type.body) },
-        trailingContent = { Text(value, style = Type.body, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        trailingContent = { Text(value, style = Type.body) },
     )
 }
 
