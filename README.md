@@ -117,6 +117,20 @@ anything if someone is using another app on the TV.
   opening one switches Shelf to that style.
 - **Hidden apps**: Shelf settings → Hidden apps (or the eye pill / Settings category); OK unhides.
 
+## Personal sounds (private, never committed)
+
+Shelf can use sound clips **you** supply instead of its built-in clicks and music, on your own TV only. Nothing
+is bundled or shipped: the clips live in the git-ignored `private/sounds/` folder and are copied to the TV.
+
+```sh
+mkdir -p private/sounds        # put tick.*, ok.*, back.* (and music.*) in here, any audio/video file
+./scripts/private-sounds.sh --restart    # converts, trims, pushes, restarts Shelf if it is in front
+./scripts/private-sounds.sh --remove     # back to the built-in sounds
+```
+
+You are responsible for having the right to use whatever you put there. The project does not include, link to or
+fetch any third-party audio.
+
 ## Wave music
 
 Wave plays an original ambient loop by default. To use your own music instead:

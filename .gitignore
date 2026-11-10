@@ -6,3 +6,6 @@ local.properties
 .DS_Store
 .kotlin/
 .tv-address
+
+# Personal files (your own sound clips etc.): never committed
+private/

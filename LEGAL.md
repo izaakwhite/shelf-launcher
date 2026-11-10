@@ -41,3 +41,7 @@ the user's device and are not part of this project. Users are responsible for ha
 - The app bundles these texts and shows them in Shelf settings → Open-source licenses.
 
 _This statement describes how the project was made. It is not legal advice._
+
+## Personal sound overrides
+
+Shelf can play audio files that a user places on their own device (`scripts/private-sounds.sh`). The project bundles, links to and fetches no third-party audio; that folder is git-ignored. Anyone who uses it is responsible for having the right to use the files they supply.
