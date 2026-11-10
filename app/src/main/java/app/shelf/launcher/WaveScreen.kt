@@ -230,7 +230,7 @@ fun WaveScreen(
 
         // ---- background: month-tinted gradient ----
         Box(
-            Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.background(
+            Modifier.fillMaxSize().background(
                 Brush.linearGradient(
                     listOf(hsl(hue, 0.55f, 0.36f), hsl(hue, 0.60f, 0.20f), hsl(hue, 0.65f, 0.07f)),
                     start = Offset(0f, 0f), end = Offset(wPx, with(density) { H.toPx() } * 1.2f),
@@ -280,8 +280,8 @@ fun WaveScreen(
             if (current?.items?.isNotEmpty() == true) {
                 Box(
                     Modifier
-                        .offset(x = anchorX - 95.dp, y = H * 0.58f - 95.dp)
-                        .size(190.dp)
+                        .offset(x = anchorX - 75.dp, y = H * 0.58f - 75.dp)
+                        .size(150.dp)
                         .graphicsLayer {
                             // Breathing: 5.2 s cycle (62.5 ticks at 12 fps), eased with a raised cosine between 0.16 and 0.40.
                             alpha = if (motion) 0.16f + 0.24f * (0.5f - 0.5f * kotlin.math.cos(2f * PI.toFloat() * tick / 62.5f)) else 0.28f
@@ -318,7 +318,7 @@ fun WaveScreen(
                             rotationX = (-rel * 11f).coerceIn(-45f, 45f)
                             cameraDistance = 14f * this.density
                             // Cache the row as a texture: tilting live text in 3D is very slow on this GPU.
-                            compositingStrategy = CompositingStrategy.Offscreen
+                            compositingStrategy = CompositingStrategy.ModulateAlpha
                             alpha = listFade.value * when {
                                 ar < 0.5f -> 1f
                                 rel < -2.1f -> ((rel + 2.7f) / 0.6f).coerceIn(0f, 0.6f) // two items fit above; keep clear of the bar
@@ -437,8 +437,15 @@ private fun WaveInfo(item: GridItem, editing: Boolean, panelW: androidx.compose.
         Box(Modifier.size(imgW, imgH)) {
             if (img != null) Image(img, null, filterQuality = FilterQuality.Low, modifier = Modifier.fillMaxSize())
         }
+        Column {
         Text(item.label, style = Type.shelfTitle.copy(fontSize = 30.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 18.dp))
-        details.forEach { Text(it, style = Type.small.copy(fontSize = 15.sp, color = Color.White.copy(alpha = 0.72f)), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)) }
+        // One text element for all detail lines: a single layout and draw instead of one per line.
+        if (details.isNotEmpty()) Text(
+            details.joinToString("\n"),
+            style = Type.small.copy(fontSize = 15.sp, lineHeight = 22.sp, color = Color.White.copy(alpha = 0.72f)),
+            maxLines = details.size, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 4.dp),
+        )
         Text(
             when {
                 editing -> "▲▼ move · OK drop · Back cancel · Hold OK for options"
@@ -448,6 +455,7 @@ private fun WaveInfo(item: GridItem, editing: Boolean, panelW: androidx.compose.
             style = Type.small.copy(fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f)),
             modifier = Modifier.padding(top = 14.dp),
         )
+        }
     }
 }
 
