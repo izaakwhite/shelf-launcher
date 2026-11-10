@@ -51,7 +51,7 @@ key KEYCODE_HOME; [[ "$(fg)" == $PKG/* ]] && ok "Home brings Shelf to the front"
 key KEYCODE_BACK; [[ "$(fg)" == $PKG/* ]] && ok "Back on the home screen does not leave Shelf" || bad "Back leaves Shelf" "$(fg)"
 
 echo "Theme shortcuts"
-for s in wave aero grid; do
+for s in aero grid wave; do   # wave last: a style that is already active logs no change
   cap="$(echo "${s:0:1}" | tr a-z A-Z)${s:1}"      # portable (macOS bash 3.2 has no ${s^})
   mark; A shell am start -n "$PKG/.Theme$cap" >/dev/null 2>&1
   wait_state style "$s" 10 && ok "Opening \"Shelf $cap\" switches to $s" || bad "Shelf $cap shortcut" "style=$(state style)"
