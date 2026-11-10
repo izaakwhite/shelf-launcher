@@ -2,7 +2,6 @@ package app.shelf.launcher
 
 import android.text.format.DateFormat
 import android.view.KeyEvent as AKeyEvent
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -114,18 +113,12 @@ fun WaveScreen(
     val itemAnim = remember { Animatable(0f) }
     val root = remember { FocusRequester() }
 
-    // Motion budget: the GPU here can't draw the wheel's motion and the ambient background (ribbon drift, halo
-    // breathing, hue shift) in the same frame. Any key press pauses the ambient layer for ~0.55 s, so frames
-    // while you scroll only carry the wheel; it resumes when you stop. Ambient motion runs on one 12 fps clock.
-    var navTick by remember { mutableIntStateOf(0) }
-    val calm by produceState(false, navTick) {
-        if (navTick == 0) return@produceState
-        value = true; delay(550); value = false
-    }
+    // Ambient motion (ribbon drift, halo breathing, hue shift) runs on one 12 fps clock and never pauses, so the
+    // background keeps moving while you scroll.
     var tick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(calm, motion) {
+    LaunchedEffect(motion) {
         if (!motion) return@LaunchedEffect
-        while (!calm) { delay(84); tick++ }
+        while (true) { delay(84); tick++ }
     }
 
     fun clampCat() = cat.coerceIn(0, (categories.size - 1).coerceAtLeast(0))
@@ -184,7 +177,6 @@ fun WaveScreen(
                 val ne = ev.nativeKeyEvent
                 val down = ev.type == KeyEventType.KeyDown
                 val editing = controller.editKey != null
-                if (down) navTick++
                 when (ne.keyCode) {
                     AKeyEvent.KEYCODE_DPAD_LEFT, AKeyEvent.KEYCODE_DPAD_RIGHT -> {
                         if (down && !editing) {
@@ -245,7 +237,7 @@ fun WaveScreen(
                 ),
             ),
         )
-        WaveLayer(motion, { tick }, wPx.roundToInt(), Modifier.align(Alignment.TopStart).padding(top = H * 0.34f))
+        WaveLayer(motion, { tick }, wPx.roundToInt(), Modifier.align(Alignment.TopStart).padding(top = H * 0.41f))
 
         // ---- clock + date, top right ----
         WaveClock(Modifier.align(Alignment.TopEnd).padding(top = H * 0.05f, end = W * 0.058f))
@@ -300,15 +292,19 @@ fun WaveScreen(
         }
 
         // ---- item wheel for the focused category: the selection stays put, the list turns past it ----
-        Crossfade(current?.id, animationSpec = tween(220), label = "items") { id ->
-            val c = categories.firstOrNull { it.id == id } ?: return@Crossfade
+        // Switching category swaps the list and fades it in (a Crossfade kept both lists alive and doubled the layers).
+        val listFade = remember { Animatable(0f) }
+        LaunchedEffect(current?.id) { listFade.snapTo(0f); listFade.animateTo(1f, tween(150)) }
+        run {
+            val id = current?.id
+            val c = categories.firstOrNull { it.id == id } ?: return@run
             val pitchPx = with(density) { 64.dp.toPx() }
             val clearPx = with(density) { 22.dp.toPx() }      // extra room around the selected item
             val curvePx = with(density) { 90.dp.toPx() }
             val anchorY = H * 0.58f
             val iconPx = with(density) { 72.dp.toPx() }.roundToInt()
             c.items.forEachIndexed { i, item ->
-                if (abs(i - sel) > 6) return@forEachIndexed   // far rows are invisible; skip their layers
+                if (abs(i - sel) > 4) return@forEachIndexed   // far rows are invisible; skip their layers
                 val isSel = id == current?.id && i == sel
                 val s by animateFloatAsState(if (isSel) 1f else 0.62f, spring(0.7f, 380f), label = "is")
                 Row(
@@ -323,7 +319,7 @@ fun WaveScreen(
                             cameraDistance = 14f * this.density
                             // Cache the row as a texture: tilting live text in 3D is very slow on this GPU.
                             compositingStrategy = CompositingStrategy.Offscreen
-                            alpha = when {
+                            alpha = listFade.value * when {
                                 ar < 0.5f -> 1f
                                 rel < -2.1f -> ((rel + 2.7f) / 0.6f).coerceIn(0f, 0.6f) // two items fit above; keep clear of the bar
                                 rel > 1.6f -> (0.75f * (2.8f - rel) / 1.2f).coerceIn(0f, 0.75f)
@@ -467,8 +463,8 @@ private fun WaveLayer(motion: Boolean, tick: () -> Int, screenWpx: Int, modifier
     val ribbons by produceState(WaveArtCache.a?.let { it to WaveArtCache.b!! }) {
         if (value == null) {
             value = withContext(Dispatchers.Default) {
-                val a = WaveArt.render(1920, 210, period = 960, amp = 52f, lines = 16, phase = 0f, surface = true, px = 0.5f).asImageBitmap()
-                val b = WaveArt.render(1920, 120, period = 640, amp = 32f, lines = 9, phase = 1.3f, surface = false, px = 0.5f).asImageBitmap()
+                val a = WaveArt.render(1920, 140, period = 960, amp = 34f, lines = 12, phase = 0f, surface = true, px = 0.5f).asImageBitmap()
+                val b = WaveArt.render(1920, 84, period = 640, amp = 22f, lines = 7, phase = 1.3f, surface = false, px = 0.5f).asImageBitmap()
                 WaveArtCache.a = a; WaveArtCache.b = b
                 a to b
             }
@@ -479,16 +475,16 @@ private fun WaveLayer(motion: Boolean, tick: () -> Int, screenWpx: Int, modifier
     Box(
         modifier
             .fillMaxWidth()
-            .height(with(density) { 480.toDp() })
+            .height(with(density) { 320.toDp() })
             .drawBehind {
                 val p = if (motion) (tick() % 1080) / 1080f else 0.25f   // 1080 ticks x 84 ms = a 90 s loop
-                val sway = sin(p * 2 * PI.toFloat() * 6) * 12f
+                val sway = sin(p * 2 * PI.toFloat() * 6) * 9f
                 val half = (screenWpx / 2 + 1).coerceAtMost(1920 - 960)   // source px that cover the screen at 2x
                 val sa = ((p * 960 * 3) % 960).toInt()
                 val sb = (640 - ((p * 640 * 5) % 640)).toInt() % 640
                 val w2 = half * 2
-                drawImage(r.first, srcOffset = IntOffset(sa, 0), srcSize = IntSize(half, 210), dstOffset = IntOffset(0, 30 + sway.toInt()), dstSize = IntSize(w2, 420), filterQuality = FilterQuality.Low)
-                drawImage(r.second, srcOffset = IntOffset(sb, 0), srcSize = IntSize(half, 120), dstOffset = IntOffset(0, (150 - sway).toInt()), dstSize = IntSize(w2, 240), filterQuality = FilterQuality.Low, alpha = 0.85f)
+                drawImage(r.first, srcOffset = IntOffset(sa, 0), srcSize = IntSize(half, 140), dstOffset = IntOffset(0, 20 + sway.toInt()), dstSize = IntSize(w2, 280), filterQuality = FilterQuality.Low)
+                drawImage(r.second, srcOffset = IntOffset(sb, 0), srcSize = IntSize(half, 84), dstOffset = IntOffset(0, (100 - sway).toInt()), dstSize = IntSize(w2, 168), filterQuality = FilterQuality.Low, alpha = 0.85f)
             },
     )
 }
